@@ -21,6 +21,8 @@ public class Autore {
     @Column(name = "data_morte")
     private LocalDate dataMorte;
 
+
+
     // Costruttore vuoto obbligatorio per JPA
     public Autore() {}
 

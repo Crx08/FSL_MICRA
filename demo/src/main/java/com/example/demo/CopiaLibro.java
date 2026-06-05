@@ -16,7 +16,7 @@ public class CopiaLibro {
     private Libro libro;
 
     @Column(name = "stato_conservazione")
-    private String statoConservazione = "Buono";
+    private String statoConservazione = "       ";
 
     private Boolean disponibile = true;
 

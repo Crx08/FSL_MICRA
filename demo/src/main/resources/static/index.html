@@ -1,0 +1,360 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+    <meta charset="UTF-8">
+    <title>Gestionale Biblioteca di Cesare</title>
+    <style>
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background-color: #f4f6f9;
+            margin: 0;
+            padding: 20px;
+            color: #333;
+        }
+        .container {
+            max-width: 1100px;
+            margin: 0 auto;
+            background: white;
+            padding: 30px;
+            border-radius: 8px;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+        }
+        h1 {
+            color: #2c3e50;
+            border-bottom: 2px solid #2ecc71;
+            padding-bottom: 10px;
+        }
+        h2 {
+            color: #2c3e50;
+            margin-top: 40px;
+            border-left: 5px solid #2ecc71;
+            padding-left: 10px;
+        }
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-top: 15px;
+            margin-bottom: 20px;
+        }
+        th, td {
+            padding: 12px;
+            text-align: left;
+            border-bottom: 1px solid #ddd;
+        }
+        th {
+            background-color: #2c3e50;
+            color: white;
+        }
+        tr:hover {
+            background-color: #f1f1f1;
+        }
+        .btn {
+            background-color: #e74c3c;
+            color: white;
+            border: none;
+            padding: 6px 12px;
+            border-radius: 4px;
+            cursor: pointer;
+            font-weight: bold;
+        }
+        .btn:hover {
+            background-color: #c0392b;
+        }
+        .form-section {
+            background: #ecf0f1;
+            padding: 20px;
+            border-radius: 6px;
+            margin-bottom: 20px;
+        }
+        .form-group {
+            margin-bottom: 15px;
+            display: inline-block;
+            margin-right: 15px;
+            vertical-align: top;
+        }
+        label {
+            display: block;
+            margin-bottom: 5px;
+            font-weight: bold;
+            font-size: 0.9em;
+        }
+        input {
+            padding: 8px;
+            width: 180px;
+            border: 1px solid #ccc;
+            border-radius: 4px;
+            box-sizing: border-box;
+        }
+        .btn-submit {
+            background-color: #2ecc71;
+            color: white;
+            padding: 8px 15px;
+            display: block;
+            margin-top: 10px;
+        }
+        .btn-submit:hover {
+            background-color: #27ae60;
+        }
+        .badge-disponibile {
+            background-color: #2ecc71;
+            color: white;
+            padding: 4px 8px;
+            border-radius: 4px;
+            font-weight: bold;
+            font-size: 0.85em;
+        }
+        .badge-prestato {
+            background-color: #e74c3c;
+            color: white;
+            padding: 4px 8px;
+            border-radius: 4px;
+            font-weight: bold;
+            font-size: 0.85em;
+        }
+    </style>
+</head>
+<body>
+
+<div class="container">
+    <h1>📚 Sistema Biblioteca - Pannello di Cesare</h1>
+
+    <h2>Prestiti Attivi</h2>
+    <table>
+        <thead>
+        <tr>
+            <th>ID Prestito</th>
+            <th>Utente</th>
+            <th>Libro</th>
+            <th>Data Inizio</th>
+            <th>Scadenza</th>
+            <th>Data Restituzione</th>
+            <th>Azione</th>
+        </tr>
+        </thead>
+        <tbody id="tabella-prestiti"></tbody>
+    </table>
+
+    <h2>📖 Stato e Disponibilità Libri nel Catalogo</h2>
+    <table>
+        <thead>
+        <tr>
+            <th>ID Copia</th>
+            <th>Titolo</th>
+            <th>Autore (Nascita - Morte)</th>
+            <th>Collocazione (Sala/Scaffale/Ripiano)</th>
+            <th>Stato Libro</th>
+        </tr>
+        </thead>
+        <tbody id="tabella-stato-libri"></tbody>
+    </table>
+
+    <h2>👤 Registro Utenti Iscritti</h2>
+    <table>
+        <thead>
+        <tr>
+            <th>ID Utente</th>
+            <th>Nome Cognome</th>
+            <th>Email</th>
+            <th>Telefono</th>
+        </tr>
+        </thead>
+        <tbody id="tabella-utenti-lista"></tbody>
+    </table>
+
+    <hr style="margin-top: 40px; border: 0; border-top: 1px solid #ccc;">
+
+    <h2>🤝 Attiva Nuovo Prestito</h2>
+    <div class="form-section">
+        <div class="form-group">
+            <label for="idUtente">ID Utente:</label>
+            <input type="number" id="idUtente" placeholder="Es. 1">
+        </div>
+        <div class="form-group">
+            <label for="idCopia">ID Copia Libro:</label>
+            <input type="number" id="idCopia" placeholder="Es. 1">
+        </div>
+        <button class="btn btn-submit" onclick="attivaPrestito()">Registra Prestito</button>
+    </div>
+
+    <h2>👤 Registra Nuovo Utente</h2>
+    <div class="form-section">
+        <div class="form-group">
+            <label for="nomeUtente">Nome:</label>
+            <input type="text" id="nomeUtente" placeholder="Es. Mario">
+        </div>
+        <div class="form-group">
+            <label for="cognomeUtente">Cognome:</label>
+            <input type="text" id="cognomeUtente" placeholder="Es. Rossi">
+        </div>
+        <div class="form-group">
+            <label for="emailUtente">Email:</label>
+            <input type="email" id="emailUtente" placeholder="Es. mario@email.com">
+        </div>
+        <div class="form-group">
+            <label for="telefonoUtente">Telefono:</label>
+            <input type="text" id="telefonoUtente" placeholder="Es. 333123456">
+        </div>
+        <button class="btn btn-submit" onclick="creaUtente()">Salva Utente</button>
+    </div>
+
+    <h2>✒️ Aggiungi Nuovo Autore</h2>
+    <div class="form-section">
+        <div class="form-group">
+            <label for="nomeAutore">Nome Autore:</label>
+            <input type="text" id="nomeAutore" placeholder="Es. Dante">
+        </div>
+        <div class="form-group">
+            <label for="cognomeAutore">Cognome Autore:</label>
+            <input type="text" id="cognomeAutore" placeholder="Es. Alighieri">
+        </div>
+        <div class="form-group">
+            <label for="nascitaAutore">Data di Nascita:</label>
+            <input type="date" id="nascitaAutore">
+        </div>
+        <div class="form-group">
+            <label for="morteAutore">Data di Morte:</label>
+            <input type="date" id="morteAutore">
+        </div>
+        <button class="btn btn-submit" onclick="creaAutore()">Salva Autore</button>
+    </div>
+
+    <h2>📖 Inserisci Nuovo Libro nel Catalogo</h2>
+    <div class="form-section">
+        <div class="form-group">
+            <label for="isbnLibro">Codice ISBN:</label>
+            <input type="text" id="isbnLibro" placeholder="Es. 9781234567890">
+        </div>
+        <div class="form-group">
+            <label for="titoloLibro">Titolo Libro:</label>
+            <input type="text" id="titoloLibro" placeholder="Es. Divina Commedia">
+        </div>
+        <div class="form-group">
+            <label for="idAutoreLibro">ID Autore (Esistente):</label>
+            <input type="number" id="idAutoreLibro" placeholder="Es. 1">
+        </div>
+        <div class="form-group">
+            <label for="salaLibro">Sala:</label>
+            <input type="text" id="salaLibro" placeholder="Es. Sala A">
+        </div>
+        <div class="form-group">
+            <label for="scaffaleLibro">Scaffale:</label>
+            <input type="text" id="scaffaleLibro" placeholder="Es. Scaffale 1">
+        </div>
+        <div class="form-group">
+            <label for="ripianoLibro">Ripiano:</label>
+            <input type="text" id="ripianoLibro" placeholder="Es. Ripiano 3">
+        </div>
+        <button class="btn btn-submit" onclick="creaLibro()">Salva Libro</button>
+    </div>
+</div>
+
+<script>
+    window.onload = function() {
+        aggiornaTutto();
+    };
+
+    function aggiornaTutto() {
+        caricaPrestiti();
+        caricaStatoLibri();
+        caricaUtenti();
+    }
+
+    // 1. CARICA TABELLA PRESTITI
+    function caricaPrestiti() {
+        fetch('http://localhost:8080/prestiti')
+            .then(response => response.json())
+            .then(prestiti => {
+                const tbody = document.getElementById('tabella-prestiti');
+                tbody.innerHTML = '';
+                prestiti.forEach(p => {
+                    let azione = p.dataRestituzione ? `<span style="color: #2ecc71; font-weight: bold;">✔ Restituito</span>` : `<button class="btn" onclick="restituisciLibro(${p.idPrestito})">Restituisci</button>`;
+                    tbody.innerHTML += `
+                        <tr>
+                            <td>${p.idPrestito}</td>
+                            <td>${p.utente.nome} ${p.utente.cognome}</td>
+                            <td>${p.copiaLibro.libro.titolo} (Copia #${p.copiaLibro.idCopia})</td>
+                            <td>${p.dataInizio}</td>
+                            <td>${p.dataScadenza}</td>
+                            <td>${p.dataRestituzione ? p.dataRestituzione : '---'}</td>
+                            <td>${azione}</td>
+                        </tr>`;
+                });
+            }).catch(err => console.error(err));
+    }
+
+    // 2. CARICA TABELLA STATO LIBRI (Mostra se Disponibile o Prestato e date autore)
+    function caricaStatoLibri() {
+        // Chiamiamo l'endpoint delle copie (o dei libri a seconda di come hai impostato il controller)
+        fetch('http://localhost:8080/copie')
+            .then(res => res.json())
+            .then(copie => {
+                const tbody = document.getElementById('tabella-stato-libri');
+                tbody.innerHTML = '';
+                copie.forEach(c => {
+                    let stato = c.disponibile ? `<span class="badge-disponibile">Disponibile</span>` : `<span class="badge-prestato">In Prestito</span>`;
+                    let dataMorteMostrata = c.libro.autore.dataMorte ? c.libro.autore.dataMorte : 'Vivente';
+                    tbody.innerHTML += `
+                        <tr>
+                            <td><strong>#${c.idCopia}</strong></td>
+                            <td>${c.libro.titolo}</td>
+                            <td>${c.libro.autore.nome} ${c.libro.autore.cognome} (${c.libro.autore.dataNascita} / ${dataMorteMostrata})</td>
+                            <td>${c.libro.sala} - ${c.libro.scaffale} - ${c.libro.ripiano}</td>
+                            <td>${stato}</td>
+                        </tr>`;
+                });
+            }).catch(err => console.error(err));
+    }
+
+    // 3. CARICA TABELLA UTENTI
+    function caricaUtenti() {
+        fetch('http://localhost:8080/utenti')
+            .then(res => res.json())
+            .then(utenti => {
+                const tbody = document.getElementById('tabella-utenti-lista');
+                tbody.innerHTML = '';
+                utenti.forEach(u => {
+                    tbody.innerHTML += `<tr><td>${u.idUtente}</td><td>${u.nome} ${u.cognome}</td><td>${u.email}</td><td>${u.telefono}</td></tr>`;
+                });
+            });
+    }
+
+    function attivaPrestito() {
+        const idUtente = document.getElementById('idUtente').value;
+        const idCopia = document.getElementById('idCopia').value;
+        fetch(`http://localhost:8080/prestiti/attiva?idUtente=${idUtente}&idCopia=${idCopia}`)
+            .then(res => res.text()).then(msg => { alert(msg); aggiornaTutto(); });
+    }
+
+    function restituisciLibro(id) {
+        if(confirm("Confermi la restituzione?")) {
+            fetch(`http://localhost:8080/prestiti/restituisci?idPrestito=${id}`)
+                .then(res => res.text()).then(msg => { alert(msg); aggiornaTutto(); });
+        }
+    }
+
+    function creaUtente() {
+        const dati = { nome: document.getElementById('nomeUtente').value, cognome: document.getElementById('cognomeUtente').value, email: document.getElementById('emailUtente').value, telefono: document.getElementById('telefonoUtente').value };
+        fetch('http://localhost:8080/utenti', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(dati) })
+            .then(res => res.json()).then(() => { alert("Utente Creato!"); aggiornaTutto(); });
+    }
+
+    function creaAutore() {
+        const dati = {
+            nome: document.getElementById('nomeAutore').value,
+            cognome: document.getElementById('cognomeAutore').value,
+            dataNascita: document.getElementById('nascitaAutore').value,
+            dataMorte: document.getElementById('morteAutore').value ? document.getElementById('morteAutore').value : null // Gestisce la morte
+        };
+        fetch('http://localhost:8080/autori', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(dati) })
+            .then(res => res.json()).then(() => { alert("Autore Creato!"); aggiornaTutto(); });
+    }
+
+    function creaLibro() {
+        const idAutore = document.getElementById('idAutoreLibro').value;
+        const dati = { codiceIsbn: document.getElementById('isbnLibro').value, titolo: document.getElementById('titoloLibro').value, sala: document.getElementById('salaLibro').value, scaffale: document.getElementById('scaffaleLibro').value, ripiano: document.getElementById('ripianoLibro').value, autore: { idAutore: parseInt(idAutore) } };
+        fetch('http://localhost:8080/libri', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(dati) })
+            .then(res => res.json()).then(() => { alert("Libro Creato!"); aggiornaTutto(); });
+    }
+</script>
+</body>
+</html>
