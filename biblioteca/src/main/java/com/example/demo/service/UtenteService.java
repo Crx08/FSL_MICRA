@@ -18,7 +18,7 @@ public class UtenteService {
         return repository.findAll();
     }
 
-    public Utente findById(Long id) {
+    public Utente findById(Integer id) {
         return repository.findById(id)
                 .orElseThrow(() -> new RuntimeException("Utente non trovato con id: " + id));
     }
@@ -27,7 +27,7 @@ public class UtenteService {
         return repository.save(utente);
     }
 
-    public Utente update(Long id, Utente nuovoUtente) {
+    public Utente update(Integer id, Utente nuovoUtente) {
         Utente utente = findById(id);
         utente.setNome(nuovoUtente.getNome());
         utente.setCognome(nuovoUtente.getCognome());
@@ -37,6 +37,6 @@ public class UtenteService {
     }
 
     public void delete(Long id) {
-        repository.deleteById(id);
+        repository.deleteById(Math.toIntExact(id));
     }
 }

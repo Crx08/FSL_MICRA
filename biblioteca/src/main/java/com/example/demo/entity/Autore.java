@@ -10,7 +10,7 @@ public class Autore {
     @Id // Chiave primaria
     @GeneratedValue(strategy = GenerationType.IDENTITY) // AUTO_INCREMENT
     @Column(name = "id_autore")
-    private Long idAutore;
+    private Integer idAutore;
 
     private String nome;
     private String cognome;
@@ -24,8 +24,8 @@ public class Autore {
     public Autore() {}
 
     // Getter e Setter
-    public Long getIdAutore() { return idAutore; }
-    public void setIdAutore(Long idAutore) { this.idAutore = idAutore; }
+    public Integer getIdAutore() { return idAutore; }
+    public void setIdAutore(Integer idAutore) { this.idAutore = idAutore; }
     public String getNome() { return nome; }
     public void setNome(String nome) { this.nome = nome; }
     public String getCognome() { return cognome; }

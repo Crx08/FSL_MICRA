@@ -29,12 +29,13 @@ public class PrestitoService {
         return prestitoRepository.findAll();
     }
 
-    public Prestito findById(Long id) {
+    public Prestito findById(Integer id) {
         return prestitoRepository.findById(id)
                 .orElseThrow(() -> new RuntimeException("Prestito non trovato con id: " + id));
     }
 
-    public String attiva(Long idUtente, Long idCopia) {
+    // CORRETTO: idCopia cambiato da Long a Integer
+    public String attiva(Integer idUtente, Integer idCopia) {
         Utente utente = utenteRepository.findById(idUtente)
                 .orElseThrow(() -> new RuntimeException("Utente non trovato con id: " + idUtente));
         CopiaLibro copia = copiaLibroRepository.findById(idCopia)
@@ -57,7 +58,8 @@ public class PrestitoService {
         return "Prestito registrato per " + utente.getNome() + "! Scadenza: " + prestito.getDataScadenza();
     }
 
-    public String restituisci(Long idPrestito) {
+    // CORRETTO: idPrestito cambiato da Long a Integer
+    public String restituisci(Integer idPrestito) {
         Prestito prestito = findById(idPrestito);
 
         if (prestito.getDataRestituzione() != null) {
@@ -71,10 +73,12 @@ public class PrestitoService {
         prestito.setDataRestituzione(LocalDate.now());
         prestitoRepository.save(prestito);
 
+        // Nota: Assicurati che nella tua classe CopiaLibro esista il metodo getLibro()
         return "Restituzione completata per: '" + copia.getLibro().getTitolo() + "'";
     }
 
-    public void delete(Long id) {
+    // CORRETTO: id cambiato da Long a Integer
+    public void delete(Integer id) {
         prestitoRepository.deleteById(id);
     }
 }

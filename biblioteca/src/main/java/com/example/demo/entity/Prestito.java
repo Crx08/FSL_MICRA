@@ -10,7 +10,7 @@ public class Prestito {
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     @Column(name = "id_prestito")
-    private Long idPrestito;
+    private Integer idPrestito;
 
     @ManyToOne
     @JoinColumn(name = "id_utente", nullable = false)
@@ -29,19 +29,55 @@ public class Prestito {
     @Column(name = "data_restituzione")
     private LocalDate dataRestituzione;
 
+    // Costruttore vuoto obbligatorio per JPA
     public Prestito() {}
 
-    // Getter e Setter
-    public Long getIdPrestito() { return idPrestito; }
-    public void setIdPrestito(Long idPrestito) { this.idPrestito = idPrestito; }
-    public Utente getUtente() { return utente; }
-    public void setUtente(Utente utente) { this.utente = utente; }
-    public CopiaLibro getCopiaLibro() { return copiaLibro; }
-    public void setCopiaLibro(CopiaLibro copiaLibro) { this.copiaLibro = copiaLibro; }
-    public LocalDate getDataInizio() { return dataInizio; }
-    public void setDataInizio(LocalDate dataInizio) { this.dataInizio = dataInizio; }
-    public LocalDate getDataScadenza() { return dataScadenza; }
-    public void setDataScadenza(LocalDate dataScadenza) { this.dataScadenza = dataScadenza; }
-    public LocalDate getDataRestituzione() { return dataRestituzione; }
-    public void setDataRestituzione(LocalDate dataRestituzione) { this.dataRestituzione = dataRestituzione; }
+    // Getter e Setter corretti
+    public Integer getIdPrestito() {
+        return idPrestito;
+    }
+
+    public void setIdPrestito(Integer idPrestito) {
+        this.idPrestito = idPrestito;
+    }
+
+    public Utente getUtente() {
+        return utente;
+    }
+
+    public void setUtente(Utente utente) {
+        this.utente = utente;
+    }
+
+    public CopiaLibro getCopiaLibro() {
+        return copiaLibro;
+    }
+
+    public void setCopiaLibro(CopiaLibro copiaLibro) {
+        this.copiaLibro = copiaLibro;
+    }
+
+    public LocalDate getDataInizio() {
+        return dataInizio;
+    }
+
+    public void setDataInizio(LocalDate dataInizio) {
+        this.dataInizio = dataInizio;
+    }
+
+    public LocalDate getDataScadenza() {
+        return dataScadenza;
+    }
+
+    public void setDataScadenza(LocalDate dataScadenza) {
+        this.dataScadenza = dataScadenza;
+    }
+
+    public LocalDate getDataRestituzione() {
+        return dataRestituzione;
+    }
+
+    public void setDataRestituzione(LocalDate dataRestituzione) {
+        this.dataRestituzione = dataRestituzione;
+    }
 }

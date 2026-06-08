@@ -32,7 +32,7 @@ public class PrestitoController {
 
     // NUOVO Endpoint POST Complesso: http://localhost:8080/prestiti/attiva
     @GetMapping("/attiva")
-    public String attivaPrestito(@RequestParam Long idUtente, @RequestParam Long idCopia) {
+    public String attivaPrestito(@RequestParam Integer idUtente, @RequestParam Integer idCopia) {
 
         // 1. Cerchiamo l'utente e la copia nel database
         Utente utente = utenteRepository.findById(idUtente).orElse(null);
@@ -64,7 +64,7 @@ public class PrestitoController {
     }
 
     @GetMapping("/restituisci")
-    public String restituisciLibro(@RequestParam Long idPrestito) {
+    public String restituisciLibro(@RequestParam Integer idPrestito) {
 
         // 1. Cerchiamo il prestito nel database
         Prestito prestito = prestitoRepository.findById(idPrestito).orElse(null);

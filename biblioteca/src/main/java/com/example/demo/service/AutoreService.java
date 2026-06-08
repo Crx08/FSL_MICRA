@@ -18,7 +18,7 @@ public class AutoreService {
         return repository.findAll();
     }
 
-    public Autore findById(Long id) {
+    public Autore findById(Integer id) {
         return repository.findById(id)
                 .orElseThrow(() -> new RuntimeException("Autore non trovato con id: " + id));
     }
@@ -28,7 +28,7 @@ public class AutoreService {
     }
 
     public Autore update(Long id, Autore nuovoAutore) {
-        Autore autore = findById(id);
+        Autore autore = findById(Math.toIntExact(id));
         autore.setNome(nuovoAutore.getNome());
         autore.setCognome(nuovoAutore.getCognome());
         autore.setDataNascita(nuovoAutore.getDataNascita());
@@ -36,7 +36,7 @@ public class AutoreService {
         return repository.save(autore);
     }
 
-    public void delete(Long id) {
+    public void delete(Integer id) {
         repository.deleteById(id);
     }
 }

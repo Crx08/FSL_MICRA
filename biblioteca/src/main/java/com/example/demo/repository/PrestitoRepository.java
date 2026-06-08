@@ -5,5 +5,6 @@ import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.stereotype.Repository;
 
 @Repository
-public interface PrestitoRepository extends JpaRepository<Prestito, Long> {
+// Correggi "integer" in "Integer" (con la I maiuscola)
+public interface PrestitoRepository extends JpaRepository<Prestito, Integer> {
 }

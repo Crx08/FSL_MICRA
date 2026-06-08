@@ -8,7 +8,7 @@ public class CopiaLibro {
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     @Column(name = "id_copia")
-    private Long idCopia;
+    private Integer idCopia;
 
     @ManyToOne
     @JoinColumn(name = "codice_isbn", nullable = false)
@@ -22,8 +22,8 @@ public class CopiaLibro {
     public CopiaLibro() {}
 
     // Getter e Setter
-    public Long getIdCopia() { return idCopia; }
-    public void setIdCopia(Long idCopia) { this.idCopia = idCopia; }
+    public Integer getIdCopia() { return idCopia; }
+    public void setIdCopia(Integer idCopia) { this.idCopia = idCopia; }
     public Libro getLibro() { return libro; }
     public void setLibro(Libro libro) { this.libro = libro; }
     public String getStatoConservazione() { return statoConservazione; }
