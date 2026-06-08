@@ -23,8 +23,13 @@ public class Libro {
 
     public Libro() {}
 
+
+
     // Getter e Setter
     public String getCodiceIsbn() { return codiceIsbn; }
+    public String getTitolo() {
+        return titolo;
+    }
     public void setTitolo(String titolo) { this.titolo = titolo; }
     public Autore getAutore() { return autore; }
     public void setAutore(Autore autore) { this.autore = autore; }

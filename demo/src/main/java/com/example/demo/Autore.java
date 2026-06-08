@@ -3,8 +3,8 @@ package com.example.demo;
 import jakarta.persistence.*;
 import java.time.LocalDate;
 
-@Entity // Dice a Spring che questa classe è una tabella del database
-@Table(name = "autori") // Specifica che la tabella si chiama "autori"
+@Entity //Tabella del database
+@Table(name = "autori") //La tabella si chiama "autori"
 public class Autore {
 
     @Id // Chiave primaria
@@ -21,12 +21,9 @@ public class Autore {
     @Column(name = "data_morte")
     private LocalDate dataMorte;
 
-
-
-    // Costruttore vuoto obbligatorio per JPA
     public Autore() {}
 
-    // Getter e Setter (Servono a Spring per leggere e scrivere i dati)
+    // Getter e Setter
     public Long getIdAutore() { return idAutore; }
     public void setIdAutore(Long idAutore) { this.idAutore = idAutore; }
     public String getNome() { return nome; }

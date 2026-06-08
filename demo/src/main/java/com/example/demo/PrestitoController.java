@@ -71,14 +71,14 @@ public class PrestitoController {
             return "Questo libro è già stato restituito in data: " + prestito.getDataRestituzione();
         }
 
-        // 2. Recuperiamo la copia del libro collegata e la rimettiamo disponibile
+        // 2. Recuperiamo la copia del libro  e la rimettiamo disponibile
         CopiaLibro copia = prestito.getCopiaLibro();
         copia.setDisponibile(true);
         copiaLibroRepository.save(copia); // Aggiorna lo stato della copia
 
         // 3. Impostiamo la data di restituzione a oggi
         prestito.setDataRestituzione(LocalDate.now());
-        prestitoRepository.save(prestito); // Aggiorna il prestito
+        prestitoRepository.save(prestito);
 
         return "Restituzione completata con successo per il libro: '" + copia.getLibro().getTitolo() + "'!";
     }
