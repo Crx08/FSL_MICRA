@@ -1,7 +1,7 @@
-package com.example.demo.Controller;
+package com.example.demo.controller;
 
-import com.example.demo.Entity.Autore;
-import com.example.demo.Repository.AutoreRepository;
+import com.example.demo.entity.Autore;
+import com.example.demo.repository.AutoreRepository;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.web.bind.annotation.*;
 import java.util.List;
