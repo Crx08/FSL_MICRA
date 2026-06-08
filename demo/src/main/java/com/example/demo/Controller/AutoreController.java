@@ -1,5 +1,7 @@
-package com.example.demo;
+package com.example.demo.Controller;
 
+import com.example.demo.Autore;
+import com.example.demo.Repository.AutoreRepository;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.web.bind.annotation.*;
 import java.util.List;

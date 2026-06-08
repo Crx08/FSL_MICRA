@@ -1,5 +1,11 @@
-package com.example.demo;
+package com.example.demo.Controller;
 
+import com.example.demo.CopiaLibro;
+import com.example.demo.Prestito;
+import com.example.demo.Repository.CopiaLibroRepository;
+import com.example.demo.Repository.PrestitoRepository;
+import com.example.demo.Repository.UtenteRepository;
+import com.example.demo.Utente;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.web.bind.annotation.*;
 import java.time.LocalDate;
