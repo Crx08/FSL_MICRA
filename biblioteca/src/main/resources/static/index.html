@@ -1,0 +1,395 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Gestionale Biblioteca ITTS - Dashboard Globale</title>
+    <style>
+        * { box-sizing: border-box; margin: 0; padding: 0; font-family: 'Segoe UI', sans-serif; }
+        body { background-color: #f4f6f9; color: #333; }
+
+        /* NAVBAR */
+        .navbar { background-color: #2c3e50; display: flex; justify-content: center; padding: 15px 0; position: sticky; top: 0; z-index: 1000; flex-wrap: wrap; gap: 5px; box-shadow: 0 2px 10px rgba(0,0,0,0.1); }
+        .nav-link { color: #ecf0f1; text-decoration: none; padding: 10px 18px; font-weight: bold; border-radius: 4px; cursor: pointer; font-size: 14px; transition: all 0.3s; }
+        .nav-link:hover { background-color: #34495e; color: #3498db; }
+        .nav-link.active { background-color: #3498db; color: white; }
+
+        .container { max-width: 1100px; margin: 40px auto; padding: 0 20px; }
+        .tab-content { display: none; animation: fadeIn 0.4s ease; }
+        .tab-content.active { display: block; }
+        @keyframes fadeIn { from { opacity: 0; transform: translateY(5px); } to { opacity: 1; transform: translateY(0); } }
+
+        h1 { color: #2c3e50; margin-bottom: 20px; border-bottom: 3px solid #3498db; padding-bottom: 10px; font-size: 24px; }
+        h2 { color: #2c3e50; margin-bottom: 15px; font-size: 20px; }
+        p { color: #666; margin-bottom: 15px; line-height: 1.5; }
+
+        .box { background: white; padding: 30px; border-radius: 8px; box-shadow: 0 4px 12px rgba(0,0,0,0.05); margin-bottom: 25px; }
+        .form-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 15px; margin-bottom: 20px; }
+        .form-group { display: flex; flex-direction: column; gap: 5px; }
+
+        label { font-weight: 600; color: #34495e; font-size: 14px; }
+        input, select { padding: 10px 12px; font-size: 15px; border: 2px solid #ddd; border-radius: 6px; outline: none; background: white; transition: border-color 0.2s; }
+        input:focus, select:focus { border-color: #3498db; }
+
+        /* BARRA DI RICERCA LIVE */
+        .search-container { margin-bottom: 15px; display: flex; gap: 10px; }
+        .search-bar { flex: 1; padding: 10px 15px; font-size: 15px; border: 2px solid #3498db; border-radius: 6px; background-color: #fff; }
+
+        /* BOTTONI */
+        button { padding: 11px 20px; font-size: 15px; background-color: #3498db; color: white; border: none; border-radius: 6px; cursor: pointer; font-weight: bold; transition: background 0.2s; }
+        button:hover { background-color: #2980b9; }
+        .btn-delete { background-color: #e74c3c; padding: 6px 12px; font-size: 13px; }
+        .btn-delete:hover { background-color: #c0392b; }
+        .btn-return { background-color: #2ecc71; padding: 6px 12px; font-size: 13px; }
+        .btn-return:hover { background-color: #27ae60; }
+
+        /* TABELLE */
+        table { width: 100%; border-collapse: collapse; margin-top: 10px; background: white; border-radius: 6px; overflow: hidden; box-shadow: 0 2px 8px rgba(0,0,0,0.04); }
+        th, td { padding: 12px 15px; text-align: left; border-bottom: 1px solid #eee; font-size: 14px; }
+        th { background-color: #34495e; color: white; font-weight: 600; }
+        tr:hover { background-color: #f8f9fa; }
+        .badge { display: inline-block; padding: 4px 8px; border-radius: 4px; font-size: 12px; font-weight: bold; }
+        .badge-success { background-color: #e8f8f5; color: #2ecc71; }
+        .badge-danger { background-color: #fdebd0; color: #e67e22; }
+    </style>
+</head>
+<body>
+
+<nav class="navbar">
+    <div class="nav-link active" onclick="apriScheda('home')">🏠 Home</div>
+    <div class="nav-link" onclick="apriScheda('tab-utenti')">👤 Utenti</div>
+    <div class="nav-link" onclick="apriScheda('tab-libri')">📖 Libri</div>
+    <div class="nav-link" onclick="apriScheda('tab-autori')">✍️ Autori</div>
+    <div class="nav-link" onclick="apriScheda('tab-prestiti')">🤝 Prestiti</div>
+</nav>
+
+<div class="container">
+
+    <div id="home" class="tab-content active">
+        <div class="box">
+            <h1>📚 Mediateca ITTS - Pannello di Amministrazione</h1>
+            <p>Benvenuto nel software di gestione integrata. Da qui puoi monitorare le anagrafiche, verificare la disponibilità dei libri in tempo reale e gestire i flussi di prestito e restituzione.</p>
+        </div>
+    </div>
+
+    <div id="tab-utenti" class="tab-content">
+        <div class="box">
+            <h2>👤 Registrazione Nuovo Utente</h2>
+            <div class="form-grid">
+                <div class="form-group"><label>Nome:</label><input type="text" id="nomeUtente"></div>
+                <div class="form-group"><label>Cognome:</label><input type="text" id="cognomeUtente"></div>
+                <div class="form-group"><label>Data di Nascita:</label><input type="date" id="dataNascitaUtente"></div>
+                <div class="form-group"><label>Sesso:</label><select id="sessoUtente"><option value="">--</option><option value="M">M</option><option value="F">F</option></select></div>
+                <div class="form-group"><label>Email:</label><input type="email" id="emailUtente"></div>
+                <div class="form-group"><label>Telefono:</label><input type="text" id="telefonoUtente" placeholder="Es. 3331234567"></div>
+            </div>
+            <button onclick="salvaUtente()">Salva Utente</button>
+        </div>
+
+        <div class="box">
+            <h2>📋 Elenco Utenti Registrati</h2>
+            <div class="search-container">
+                <input type="text" id="searchUtente" class="search-bar" onkeyup="filtraTabella('searchUtente', 'tabellaUtenti')" placeholder="🔍 Cerca utente per nome, cognome, email o telefono...">
+                <button onclick="caricaUtenti()">🔄 Aggiorna</button>
+            </div>
+            <table id="tabellaUtenti">
+                <thead>
+                <tr><th>ID</th><th>Nome</th><th>Cognome</th><th>Email</th><th>Telefono</th><th>Azioni</th></tr>
+                </thead>
+                <tbody></tbody>
+            </table>
+        </div>
+    </div>
+
+    <div id="tab-libri" class="tab-content">
+        <div class="box">
+            <h2>📖 Inserimento Nuovo Libro</h2>
+            <div class="form-grid">
+                <div class="form-group"><label>Titolo:</label><input type="text" id="libroTitolo"></div>
+                <div class="form-group"><label>Codice ISBN:</label><input type="text" id="libroIsbn"></div>
+                <div class="form-group"><label>Anno Pubblicazione:</label><input type="number" id="libroAnno"></div>
+                <div class="form-group"><label>ID Autore (Vedi scheda Autori):</label><input type="number" id="libroIdAutore"></div>
+                <div class="form-group"><label>Sala:</label><input type="text" id="libroSala"></div>
+                <div class="form-group"><label>Scaffale:</label><input type="text" id="libroScaffale"></div>
+                <div class="form-group"><label>Ripiano:</label><input type="text" id="libroRipiano"></div>
+            </div>
+            <button onclick="salvaLibro()">Aggiungi Libro</button>
+        </div>
+
+        <div class="box">
+            <h2>📋 Inventario Catalogo Libri</h2>
+            <div class="search-container">
+                <input type="text" id="searchLibro" class="search-bar" onkeyup="filtraTabella('searchLibro', 'tabellaLibri')" placeholder="🔍 Cerca libro per titolo, ISBN, sala...">
+                <button onclick="caricaLibri()">🔄 Aggiorna</button>
+            </div>
+            <table id="tabellaLibri">
+                <thead>
+                <tr><th>ID</th><th>Titolo</th><th>ISBN</th><th>Anno</th><th>Collocazione</th><th>Azioni</th></tr>
+                </thead>
+                <tbody></tbody>
+            </table>
+        </div>
+    </div>
+
+    <div id="tab-autori" class="tab-content">
+        <div class="box">
+            <h2>✍️ Registro Autori</h2>
+            <p>Consulta l'elenco degli autori per recuperare l'ID corretto da associare durante l'inserimento dei libri.</p>
+            <div class="search-container">
+                <input type="text" id="searchAutore" class="search-bar" onkeyup="filtraTabella('searchAutore', 'tabellaAutori')" placeholder="🔍 Cerca autore per nome, cognome o nazionalità...">
+                <button onclick="caricaAutori()">🔄 Aggiorna Lista Autori</button>
+            </div>
+            <table id="tabellaAutori">
+                <thead>
+                <tr><th>ID Autore</th><th>Nome</th><th>Cognome</th><th>Nazionalità</th></tr>
+                </thead>
+                <tbody></tbody>
+            </table>
+        </div>
+    </div>
+
+    <div id="tab-prestiti" class="tab-content">
+        <div class="box">
+            <h2>🤝 Attivazione Nuovo Prestito</h2>
+            <div class="form-grid">
+                <div class="form-group"><label>ID Utente:</label><input type="number" id="prestitoIdUtente" placeholder="Es. 4"></div>
+                <div class="form-group"><label>ID Copia Libro:</label><input type="number" id="prestitoIdCopia" placeholder="Es. 12"></div>
+            </div>
+            <button onclick="salvaPrestito()">Consegna e Attiva Prestito</button>
+        </div>
+
+        <div class="box">
+            <h2>📋 Registro Storico Prestiti</h2>
+            <div class="search-container">
+                <input type="text" id="searchPrestito" class="search-bar" onkeyup="filtraTabella('searchPrestito', 'tabellaPrestiti')" placeholder="🔍 Cerca prestito per utente o stato...">
+                <button onclick="caricaPrestiti()">🔄 Aggiorna</button>
+            </div>
+            <table id="tabellaPrestiti">
+                <thead>
+                <tr><th>ID Prestito</th><th>Utente</th><th>ID Copia</th><th>Data Inizio</th><th>Scadenza</th><th>Stato / Rientro</th><th>Azione</th></tr>
+                </thead>
+                <tbody></tbody>
+            </table>
+        </div>
+    </div>
+
+</div>
+
+<script>
+    function apriScheda(tabId) {
+        document.querySelectorAll('.tab-content').forEach(s => s.classList.remove('active'));
+        document.querySelectorAll('.nav-link').forEach(l => l.classList.remove('active'));
+        document.getElementById(tabId).classList.add('active');
+        event.target.classList.add('active');
+
+        if(tabId === 'tab-utenti') caricaUtenti();
+        if(tabId === 'tab-libri') caricaLibri();
+        if(tabId === 'tab-autori') caricaAutori();
+        if(tabId === 'tab-prestiti') caricaPrestiti();
+    }
+
+    // 🔍 FUNZIONE DI RICERCA LIVE IN TEMPO REALE SULLE TABELLE
+    function filtraTabella(inputId, tableId) {
+        const input = document.getElementById(inputId);
+        const filter = input.value.toUpperCase();
+        const table = document.getElementById(tableId);
+        const tr = table.getElementsByTagName("tr");
+
+        for (let i = 1; i < tr.length; i++) {
+            let rigaContieneTesto = false;
+            let td = tr[i].getElementsByTagName("td");
+
+            for (let j = 0; j < td.length; j++) {
+                if (td[j]) {
+                    if (td[j].innerText.toUpperCase().indexOf(filter) > -1) {
+                        rigaContieneTesto = true;
+                        break;
+                    }
+                }
+            }
+            tr[i].style.display = rigaContieneTesto ? "" : "none";
+        }
+    }
+
+    // ================= GESTIONE UTENTI =================
+    async function salvaUtente() {
+        const nome = document.getElementById('nomeUtente').value.trim();
+        const cognome = document.getElementById('cognomeUtente').value.trim();
+        const dataNascita = document.getElementById('dataNascitaUtente').value;
+        const sesso = document.getElementById('sessoUtente').value;
+        const email = document.getElementById('emailUtente').value.trim();
+        const telefono = document.getElementById('telefonoUtente').value.trim();
+
+        if (!nome || !cognome || !dataNascita || !sesso || !email || !telefono) {
+            alert("Errore: Tutti i campi sono obbligatori!"); return;
+        }
+
+        // Controllo formato telefono (solo cifre, lunghezza ragionevole)
+        if(!/^[0-9]{9,11}$/.test(telefono)) {
+            alert("Errore Validazione: Il numero di telefono deve contenere solo numeri (9-11 cifre)!"); return;
+        }
+
+        const response = await fetch('/utenti', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ nome, cognome, dataNascita, sesso, email, telefono })
+        });
+
+        if (response.ok) { alert("Utente registrato!"); caricaUtenti(); }
+        else { alert(await response.text()); }
+    }
+
+    async function caricaUtenti() {
+        const res = await fetch('/utenti');
+        const utenti = await res.json();
+        const tbody = document.querySelector('#tabellaUtenti tbody');
+        tbody.innerHTML = "";
+        utenti.forEach(u => {
+            tbody.innerHTML += `<tr>
+                    <td>${u.id}</td>
+                    <td>${u.nome}</td>
+                    <td>${u.cognome}</td>
+                    <td>${u.email}</td>
+                    <td>${u.telefono}</td>
+                    <td><button class="btn-delete" onclick="eliminaUtente(${u.id})">Elimina</button></td>
+                </tr>`;
+        });
+    }
+
+    async function eliminaUtente(id) {
+        if(confirm("Vuoi rimuovere questo utente da MySQL?")) {
+            const res = await fetch(`/utenti/${id}`, { method: 'DELETE' });
+            if(res.ok) { alert("Utente eliminato!"); caricaUtenti(); }
+            else { alert("Impossibile eliminare l'utente (ha prestiti attivi pendenti)."); }
+        }
+    }
+
+    // ================= GESTIONE LIBRI =================
+    async function salvaLibro() {
+        const titolo = document.getElementById('libroTitolo').value.trim();
+        const isbn = document.getElementById('libroIsbn').value.trim();
+        const anno = parseInt(document.getElementById('libroAnno').value);
+        const idAutore = document.getElementById('libroIdAutore').value;
+        const sala = document.getElementById('libroSala').value.trim();
+        const scaffale = document.getElementById('libroScaffale').value.trim();
+        const ripiano = document.getElementById('libroRipiano').value.trim();
+
+        if (!titolo || !isbn || !anno || !idAutore || !sala || !scaffale || !ripiano) {
+            alert("Errore: Compila tutti i campi del libro!"); return;
+        }
+
+        if (anno > new Date().getFullYear()) {
+            alert("Errore: L'anno di pubblicazione non può essere nel futuro!"); return;
+        }
+
+        const response = await fetch('/libri', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ titolo, codiceIsbn: isbn, annoPubblicazione: anno, sala, scaffale, ripiano, autore: { id: parseInt(idAutore) } })
+        });
+
+        if (response.ok) { alert("Libro aggiunto al catalogo!"); caricaLibri(); }
+        else { alert(await response.text()); }
+    }
+
+    async function caricaLibri() {
+        const res = await fetch('/libri');
+        const libri = await res.json();
+        const tbody = document.querySelector('#tabellaLibri tbody');
+        tbody.innerHTML = "";
+        libri.forEach(l => {
+            tbody.innerHTML += `<tr>
+                    <td>${l.id}</td>
+                    <td><strong>${l.titolo}</strong></td>
+                    <td>${l.codiceIsbn}</td>
+                    <td>${l.annoPubblicazione}</td>
+                    <td>${l.sala} (Sc. ${l.scaffale}, Rip. ${l.ripiano})</td>
+                    <td><button class="btn-delete" onclick="eliminaLibro(${l.id})">Elimina</button></td>
+                </tr>`;
+        });
+    }
+
+    async function eliminaLibro(id) {
+        if(confirm("Sicuro di voler eliminare il libro?")) {
+            const res = await fetch(`/libri/${id}`, { method: 'DELETE' });
+            if(res.ok) { alert(await res.text()); caricaLibri(); }
+            else { alert(await res.text()); }
+        }
+    }
+
+    // ================= GESTIONE AUTORI =================
+    async function caricaAutori() {
+        try {
+            const res = await fetch('/autori'); // Immagina una tua rotta /autori
+            const autori = await res.json();
+            const tbody = document.querySelector('#tabellaAutori tbody');
+            tbody.innerHTML = "";
+            autori.forEach(a => {
+                tbody.innerHTML += `<tr>
+                        <td><strong>${a.id}</strong></td>
+                        <td>${a.nome}</td>
+                        <td>${a.cognome}</td>
+                        <td>${a.nazionalita || 'N.D.'}</td>
+                    </tr>`;
+            });
+        } catch(e) {
+            // Messaggio di fallback se non hai ancora creato la rotta /autori nel backend
+            document.querySelector('#tabellaAutori tbody').innerHTML = `<tr><td colspan="4" style="text-align:center; color:orange;">Crea un AutoreController con rotta GET "/autori" per caricare i dati reali.</td></tr>`;
+        }
+    }
+
+    // ================= GESTIONE PRESTITI & RESTITUZIONI =================
+    async function salvaPrestito() {
+        const idUtente = document.getElementById('prestitoIdUtente').value;
+        const idCopia = document.getElementById('prestitoIdCopia').value;
+
+        if(!idUtente || !idCopia) { alert("ID Utente e ID Copia richiesti!"); return; }
+
+        // Chiamata allineata a @PostMapping("/attiva") con @RequestParam
+        const response = await fetch(`/prestiti/attiva?idUtente=${idUtente}&idCopia=${idCopia}`, {
+            method: 'POST'
+        });
+
+        alert(await response.text());
+        if(response.ok) { caricaPrestiti(); }
+    }
+
+    async function caricaPrestiti() {
+        const res = await fetch('/prestiti');
+        const prestiti = await res.json();
+        const tbody = document.querySelector('#tabellaPrestiti tbody');
+        tbody.innerHTML = "";
+        prestiti.forEach(p => {
+            const rientrato = p.dataRestituzione != null;
+            const statoBadge = rientrato
+                ? `<span class="badge badge-success">Restituito il ${p.dataRestituzione}</span>`
+                : `<span class="badge badge-danger">Attivo (Scadenza: ${p.dataScadenza})</span>`;
+
+            const bottoneAzione = rientrato
+                ? `---`
+                : `<button class="btn-return" onclick="restituisciPrestito(${p.id})">Restituisci</button>`;
+
+            tbody.innerHTML += `<tr>
+                    <td>${p.id}</td>
+                    <td>${p.utente.nome} ${p.utente.cognome} (ID: ${p.utente.id})</td>
+                    <td>Copia ID: ${p.copiaLibro ? p.copiaLibro.id : 'N.D.'}</td>
+                    <td>${p.dataInizio}</td>
+                    <td>${p.dataScadenza || '30 Giorni'}</td>
+                    <td>${statoBadge}</td>
+                    <td>${bottoneAzione}</td>
+                </tr>`;
+        });
+    }
+
+    async function restituisciPrestito(idPrestito) {
+        // Chiamata allineata a @PostMapping("/restituisci") con @RequestParam
+        const response = await fetch(`/prestiti/restituisci?idPrestito=${idPrestito}`, {
+            method: 'POST'
+        });
+
+        alert(await response.text());
+        if(response.ok) { caricaPrestiti(); }
+    }
+</script>
+</body>
+</html>

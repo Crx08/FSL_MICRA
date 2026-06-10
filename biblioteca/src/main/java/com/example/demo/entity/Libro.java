@@ -39,4 +39,7 @@ public class Libro {
     public void setScaffale(String scaffale) { this.scaffale = scaffale; }
     public String getRipiano() { return ripiano; }
     public void setRipiano(String ripiano) { this.ripiano = ripiano; }
+    public void setCodiceIsbn(String codiceIsbn) {
+        this.codiceIsbn = codiceIsbn;
+    }
 }
