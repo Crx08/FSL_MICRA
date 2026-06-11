@@ -1,3 +1,0 @@
--- File intenzionalmente vuoto.
--- I dati di test vanno caricati manualmente da Progetto_biblioteca.sql in MySQL Workbench.
--- Spring Boot NON esegue questo file grazie a spring.sql.init.mode=never in application.properties
