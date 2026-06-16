@@ -22,10 +22,6 @@ public class Libro {
     @JsonIgnoreProperties({"libri"}) // Evita cicli infiniti se il tuo Autore ha una lista di Libri
     private Autore autore;
 
-    private String sala;
-    private String scaffale;
-    private String ripiano;
-
     // Costruttore vuoto richiesto da JPA
     public Libro() {}
 
@@ -50,12 +46,4 @@ public class Libro {
     public Autore getAutore() { return autore; }
     public void setAutore(Autore autore) { this.autore = autore; }
 
-    public String getSala() { return sala; }
-    public void setSala(String sala) { this.sala = sala; }
-
-    public String getScaffale() { return scaffale; }
-    public void setScaffale(String scaffale) { this.scaffale = scaffale; }
-
-    public String getRipiano() { return ripiano; }
-    public void setRipiano(String ripiano) { this.ripiano = ripiano; }
 }

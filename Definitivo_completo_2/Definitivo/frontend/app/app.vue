@@ -51,6 +51,38 @@ interface Prestito {
 
 const sezioneAttiva = ref<'utenti' | 'libri' | 'autori' | 'prestiti'>('utenti');
 
+// Ricerca globale
+const termineRicerca = ref('');
+const risultatiRicerca = ref<{ libri: any[], autori: any[], utenti: any[] } | null>(null);
+const ricercaInCorso = ref(false);
+
+async function eseguiRicerca() {
+  const q = termineRicerca.value.trim();
+  if (!q) {
+    risultatiRicerca.value = null;
+    return;
+  }
+  ricercaInCorso.value = true;
+  try {
+    const res = await axios.get('http://localhost:8080/ricerca', { params: { q } });
+    risultatiRicerca.value = res.data;
+  } catch (e) {
+    mostraErrore('Errore durante la ricerca.');
+  } finally {
+    ricercaInCorso.value = false;
+  }
+}
+
+function chiudiRicerca() {
+  termineRicerca.value = '';
+  risultatiRicerca.value = null;
+}
+
+function vaiA(sezione: 'utenti' | 'libri' | 'autori' | 'prestiti') {
+  sezioneAttiva.value = sezione;
+  chiudiRicerca();
+}
+
 const listaUtenti   = ref<Utente[]>([]);
 const listaLibri    = ref<Libro[]>([]);
 const listaAutori   = ref<Autore[]>([]);
@@ -382,6 +414,76 @@ onMounted(async () => {
       <h1>🏛️ Biblioteca — Pannello di Gestione</h1>
     </header>
 
+    <!-- Barra di ricerca globale -->
+    <div class="barra-ricerca-container">
+      <div class="barra-ricerca">
+        <span class="icona-cerca">🔍</span>
+        <input
+            v-model="termineRicerca"
+            placeholder="Cerca libri, autori, utenti..."
+            @input="eseguiRicerca"
+            @keydown.escape="chiudiRicerca"
+        />
+        <button v-if="termineRicerca" class="btn-chiudi-ricerca" @click="chiudiRicerca">✕</button>
+      </div>
+
+      <!-- Pannello risultati ricerca -->
+      <div v-if="risultatiRicerca" class="pannello-risultati">
+        <div v-if="ricercaInCorso" class="risultato-vuoto">Ricerca in corso...</div>
+        <template v-else>
+          <!-- Libri -->
+          <div class="gruppo-risultati" v-if="risultatiRicerca.libri.length > 0">
+            <div class="gruppo-titolo" @click="vaiA('libri')">📚 Libri ({{ risultatiRicerca.libri.length }})</div>
+            <div
+                v-for="l in risultatiRicerca.libri"
+                :key="l.codiceIsbn"
+                class="risultato-item"
+                @click="vaiA('libri')"
+            >
+              <span class="risultato-nome">{{ l.titolo }}</span>
+              <span class="risultato-dettaglio">{{ l.autore?.cognome }} {{ l.autore?.nome }} — ISBN: {{ l.codiceIsbn }}</span>
+            </div>
+          </div>
+
+          <!-- Autori -->
+          <div class="gruppo-risultati" v-if="risultatiRicerca.autori.length > 0">
+            <div class="gruppo-titolo" @click="vaiA('autori')">✍️ Autori ({{ risultatiRicerca.autori.length }})</div>
+            <div
+                v-for="a in risultatiRicerca.autori"
+                :key="a.id"
+                class="risultato-item"
+                @click="vaiA('autori')"
+            >
+              <span class="risultato-nome">{{ a.cognome }} {{ a.nome }}</span>
+              <span class="risultato-dettaglio">ID: {{ a.id }}</span>
+            </div>
+          </div>
+
+          <!-- Utenti -->
+          <div class="gruppo-risultati" v-if="risultatiRicerca.utenti.length > 0">
+            <div class="gruppo-titolo" @click="vaiA('utenti')">👤 Utenti ({{ risultatiRicerca.utenti.length }})</div>
+            <div
+                v-for="u in risultatiRicerca.utenti"
+                :key="u.id"
+                class="risultato-item"
+                @click="vaiA('utenti')"
+            >
+              <span class="risultato-nome">{{ u.cognome }} {{ u.nome }}</span>
+              <span class="risultato-dettaglio">{{ u.email }}</span>
+            </div>
+          </div>
+
+          <!-- Nessun risultato -->
+          <div
+              v-if="risultatiRicerca.libri.length === 0 && risultatiRicerca.autori.length === 0 && risultatiRicerca.utenti.length === 0"
+              class="risultato-vuoto"
+          >
+            Nessun risultato per "{{ termineRicerca }}"
+          </div>
+        </template>
+      </div>
+    </div>
+
     <div v-if="messaggioSuccesso" class="notifica successo">✅ {{ messaggioSuccesso }}</div>
     <div v-if="messaggioErrore"   class="notifica errore">⚠️ {{ messaggioErrore }}</div>
 
@@ -545,10 +647,10 @@ onMounted(async () => {
                       </td>
                       <td>
                         <button
-                          class="btn-elimina-copia"
-                          :disabled="!c.disponibile"
-                          :title="!c.disponibile ? 'Impossibile eliminare: copia in prestito' : 'Elimina copia'"
-                          @click="eliminaCopia(l.codiceIsbn, c.idCopia)"
+                            class="btn-elimina-copia"
+                            :disabled="!c.disponibile"
+                            :title="!c.disponibile ? 'Impossibile eliminare: copia in prestito' : 'Elimina copia'"
+                            @click="eliminaCopia(l.codiceIsbn, c.idCopia)"
                         >🗑️ Elimina</button>
                       </td>
                     </tr>
@@ -964,4 +1066,82 @@ onMounted(async () => {
 
 
 .legenda { font-size: 0.85rem; color: #546e7a; margin-bottom: 14px; }
+
+/* Ricerca globale */
+.barra-ricerca-container {
+  position: relative;
+  padding: 16px 40px 0;
+  background: #f0f4f8;
+}
+.barra-ricerca {
+  display: flex;
+  align-items: center;
+  background: white;
+  border: 2px solid #c5cae9;
+  border-radius: 10px;
+  padding: 10px 16px;
+  gap: 10px;
+  box-shadow: 0 2px 8px rgba(0,0,0,0.06);
+  transition: border 0.2s;
+}
+.barra-ricerca:focus-within {
+  border-color: #3f51b5;
+  box-shadow: 0 2px 12px rgba(63,81,181,0.15);
+}
+.icona-cerca { font-size: 1.1rem; color: #5c6bc0; }
+.barra-ricerca input {
+  flex: 1;
+  border: none;
+  outline: none;
+  font-size: 1rem;
+  color: #263238;
+  background: transparent;
+}
+.btn-chiudi-ricerca {
+  background: none;
+  border: none;
+  cursor: pointer;
+  color: #90a4ae;
+  font-size: 1rem;
+  padding: 0 4px;
+}
+.btn-chiudi-ricerca:hover { color: #e53935; }
+
+.pannello-risultati {
+  position: absolute;
+  top: calc(100% - 4px);
+  left: 40px;
+  right: 40px;
+  background: white;
+  border: 1px solid #c5cae9;
+  border-radius: 0 0 10px 10px;
+  box-shadow: 0 8px 24px rgba(0,0,0,0.12);
+  z-index: 100;
+  max-height: 420px;
+  overflow-y: auto;
+}
+.gruppo-risultati { border-bottom: 1px solid #eceff1; }
+.gruppo-risultati:last-child { border-bottom: none; }
+.gruppo-titolo {
+  padding: 10px 16px;
+  font-size: 0.8rem;
+  font-weight: 700;
+  color: #1a237e;
+  background: #e8eaf6;
+  cursor: pointer;
+  letter-spacing: 0.05em;
+}
+.gruppo-titolo:hover { background: #c5cae9; }
+.risultato-item {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 10px 20px;
+  cursor: pointer;
+  transition: background 0.15s;
+}
+.risultato-item:hover { background: #f5f5f5; }
+.risultato-nome { font-weight: 600; color: #263238; font-size: 0.92rem; }
+.risultato-dettaglio { font-size: 0.8rem; color: #90a4ae; }
+.risultato-vuoto { padding: 20px; text-align: center; color: #90a4ae; font-style: italic; }
 </style>

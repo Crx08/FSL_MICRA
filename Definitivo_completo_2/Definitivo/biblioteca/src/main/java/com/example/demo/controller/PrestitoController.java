@@ -41,33 +41,29 @@ public class PrestitoController {
             @RequestParam String cognomeUtente,
             @RequestParam Integer idCopia) {
 
-        // 1. Verifica identità utente: tutti e tre i campi devono combaciare
         Utente utente = utenteRepository.findById(idUtente).orElse(null);
         if (utente == null) {
             return ResponseEntity.badRequest().body(
-                "Errore: Nessun utente trovato con ID " + idUtente + ". L'utente deve essere registrato per effettuare un prestito.");
+                    "Errore: Nessun utente trovato con ID " + idUtente + ".");
         }
         if (!utente.getNome().equalsIgnoreCase(nomeUtente.trim()) ||
-            !utente.getCognome().equalsIgnoreCase(cognomeUtente.trim())) {
+                !utente.getCognome().equalsIgnoreCase(cognomeUtente.trim())) {
             return ResponseEntity.badRequest().body(
-                "Errore: Nome o cognome non corrispondono all'utente con ID " + idUtente + ". Prestito negato.");
+                    "Errore: Nome o cognome non corrispondono all'utente con ID " + idUtente + ". Prestito negato.");
         }
 
-        // 2. Verifica copia disponibile
         CopiaLibro copia = copiaLibroRepository.findById(idCopia).orElse(null);
         if (copia == null) {
             return ResponseEntity.badRequest().body("Errore: Copia con ID " + idCopia + " non trovata.");
         }
         if (!copia.getDisponibile()) {
             return ResponseEntity.badRequest().body(
-                "Errore: La copia ID " + idCopia + " è già in prestito. Scegli un'altra copia disponibile.");
+                    "Errore: La copia ID " + idCopia + " è già in prestito. Scegli un'altra copia disponibile.");
         }
 
-        // 3. Segna la copia come non disponibile
         copia.setDisponibile(false);
         copiaLibroRepository.save(copia);
 
-        // 4. Crea il prestito
         Prestito nuovoPrestito = new Prestito();
         nuovoPrestito.setUtente(utente);
         nuovoPrestito.setCopiaLibro(copia);
@@ -76,7 +72,7 @@ public class PrestitoController {
         prestitoRepository.save(nuovoPrestito);
 
         return ResponseEntity.ok("Prestito attivato con successo per " + utente.getNome() + " " + utente.getCognome() +
-            "! Scadenza: " + nuovoPrestito.getDataScadenza());
+                "! Scadenza: " + nuovoPrestito.getDataScadenza());
     }
 
     // POST restituisci
@@ -95,5 +91,19 @@ public class PrestitoController {
         prestito.setDataRestituzione(LocalDate.now());
         prestitoRepository.save(prestito);
         return ResponseEntity.ok("Restituzione completata per il libro: '" + copia.getLibro().getTitolo() + "'!");
+    }
+
+    // DELETE elimina prestito dallo storico — solo se già restituito
+    @DeleteMapping("/{id}")
+    public ResponseEntity<?> eliminaPrestito(@PathVariable Integer id) {
+        Prestito prestito = prestitoRepository.findById(id).orElse(null);
+        if (prestito == null) {
+            return ResponseEntity.badRequest().body("Errore: Prestito con ID " + id + " non trovato.");
+        }
+        if (prestito.getDataRestituzione() == null) {
+            return ResponseEntity.badRequest().body("Impossibile eliminare: il prestito è ancora attivo. Restituisci prima il libro.");
+        }
+        prestitoRepository.deleteById(id);
+        return ResponseEntity.ok("Prestito eliminato dallo storico.");
     }
 }

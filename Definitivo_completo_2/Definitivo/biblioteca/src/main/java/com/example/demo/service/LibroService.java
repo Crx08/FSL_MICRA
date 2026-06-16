@@ -31,9 +31,6 @@ public class LibroService {
         Libro libro = findById(isbn);
         libro.setTitolo(nuovoLibro.getTitolo());
         libro.setAutore(nuovoLibro.getAutore());
-        libro.setSala(nuovoLibro.getSala());
-        libro.setScaffale(nuovoLibro.getScaffale());
-        libro.setRipiano(nuovoLibro.getRipiano());
         return repository.save(libro);
     }
 

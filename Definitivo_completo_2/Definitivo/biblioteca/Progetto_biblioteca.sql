@@ -37,8 +37,8 @@ CREATE TABLE libri (
     titolo              VARCHAR(255) NOT NULL,
     anno_pubblicazione  INT,
     id_autore           INT          NOT NULL,
-    sala                VARCHAR(10)  NOT NULL,
-    scaffale            VARCHAR(10)  NOT NULL,
+    sala                VARCHAR(10),
+    scaffale            VARCHAR(10),
     ripiano             VARCHAR(10),
     FOREIGN KEY (id_autore) REFERENCES autori(id_autore)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
@@ -154,3 +154,8 @@ UNION ALL
 SELECT CONCAT('Copie: ',     COUNT(*)) FROM copie_libri
 UNION ALL
 SELECT CONCAT('Prestiti: ',  COUNT(*)) FROM prestiti;
+
+ALTER TABLE libri 
+  DROP COLUMN sala,
+  DROP COLUMN scaffale,
+  DROP COLUMN ripiano;

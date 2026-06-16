@@ -2,6 +2,7 @@ package com.example.demo.controller;
 
 import com.example.demo.entity.CopiaLibro;
 import com.example.demo.entity.Libro;
+import com.example.demo.entity.Prestito;
 import com.example.demo.repository.AutoreRepository;
 import com.example.demo.repository.CopiaLibroRepository;
 import com.example.demo.repository.LibroRepository;
@@ -65,8 +66,8 @@ public class LibroController {
     // POST inserisci copie per un libro
     @PostMapping("/{isbn}/copie")
     public ResponseEntity<?> inserisciCopie(@PathVariable String isbn,
-                                             @RequestParam(defaultValue = "1") int quantita,
-                                             @RequestParam(defaultValue = "Buono") String stato) {
+                                            @RequestParam(defaultValue = "1") int quantita,
+                                            @RequestParam(defaultValue = "Buono") String stato) {
         if (!libroRepository.existsById(isbn)) {
             return ResponseEntity.badRequest().body("Errore: Nessun libro trovato con ISBN " + isbn);
         }
@@ -94,6 +95,7 @@ public class LibroController {
     }
 
     // DELETE singola copia — bloccato se la copia è in prestito attivo
+    // Se la copia ha prestiti storici (già restituiti), li elimina prima
     @DeleteMapping("/{isbn}/copie/{idCopia}")
     public ResponseEntity<?> eliminaCopia(@PathVariable String isbn, @PathVariable Integer idCopia) {
         if (!libroRepository.existsById(isbn)) {
@@ -102,33 +104,39 @@ public class LibroController {
         if (!copiaLibroRepository.existsById(idCopia)) {
             return ResponseEntity.badRequest().body("Errore: Nessuna copia trovata con ID: " + idCopia);
         }
+        // Blocca se la copia è attualmente in prestito attivo
         boolean inPrestito = prestitoRepository.existsByCopiaLibro_IdCopiaAndDataRestituzioneIsNull(idCopia);
         if (inPrestito) {
             return ResponseEntity.badRequest().body(
-                "Impossibile eliminare: la copia è attualmente in prestito.");
+                    "Impossibile eliminare: la copia è attualmente in prestito.");
         }
+        // Elimina prima i prestiti storici (già restituiti) associati alla copia
+        List<Prestito> prestitiStorici = prestitoRepository.findByCopiaLibro_IdCopia(idCopia);
+        prestitoRepository.deleteAll(prestitiStorici);
+        // Ora elimina la copia
         copiaLibroRepository.deleteById(idCopia);
         return ResponseEntity.ok("Copia eliminata con successo.");
     }
 
-    // DELETE libro — elimina anche tutte le copie (non in prestito), blocca se ci sono prestiti attivi
+    // DELETE libro — elimina prestiti storici, copie e libro
+    // Bloccato se ci sono prestiti attivi su qualsiasi copia
     @DeleteMapping("/{isbn}")
     public ResponseEntity<?> eliminaLibro(@PathVariable String isbn) {
         if (!libroRepository.existsById(isbn)) {
             return ResponseEntity.badRequest().body("Errore: Nessun libro trovato con ISBN: " + isbn);
         }
-
-        // Controlla se il libro ha prestiti attivi su qualsiasi copia
+        // Blocca se il libro ha prestiti attivi
         boolean haPrestitiAttivi = prestitoRepository.existsByCopiaLibro_Libro_CodiceIsbnAndDataRestituzioneIsNull(isbn);
         if (haPrestitiAttivi) {
             return ResponseEntity.badRequest().body(
-                "Impossibile eliminare: una o più copie di questo libro sono attualmente in prestito.");
+                    "Impossibile eliminare: una o più copie di questo libro sono attualmente in prestito.");
         }
-
-        // Elimina tutte le copie associate al libro
+        // Elimina prima i prestiti storici del libro
+        List<Prestito> prestitiStorici = prestitoRepository.findByCopiaLibro_Libro_CodiceIsbn(isbn);
+        prestitoRepository.deleteAll(prestitiStorici);
+        // Elimina tutte le copie
         List<CopiaLibro> copie = copiaLibroRepository.findByLibro_CodiceIsbn(isbn);
         copiaLibroRepository.deleteAll(copie);
-
         // Elimina il libro
         libroRepository.deleteById(isbn);
         return ResponseEntity.ok("Libro e tutte le sue copie eliminati con successo.");

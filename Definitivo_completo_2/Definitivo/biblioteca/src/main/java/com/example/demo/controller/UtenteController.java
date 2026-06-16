@@ -1,5 +1,6 @@
 package com.example.demo.controller;
 
+import com.example.demo.entity.Prestito;
 import com.example.demo.entity.Utente;
 import com.example.demo.repository.PrestitoRepository;
 import com.example.demo.repository.UtenteRepository;
@@ -53,22 +54,26 @@ public class UtenteController {
         return ResponseEntity.ok(utenteRepository.save(utente));
     }
 
-    // DELETE utente
+    // DELETE utente — bloccato se ha prestiti attivi, elimina i prestiti storici prima
     @DeleteMapping("/{id}")
     public ResponseEntity<?> eliminaUtente(@PathVariable Integer id) {
         if (!utenteRepository.existsById(id)) {
             return ResponseEntity.badRequest().body(Map.of("message", "Errore: Utente con ID " + id + " non trovato."));
         }
-        // Controlla che l'utente non abbia prestiti attivi (non ancora restituiti)
+        // Blocca se l'utente ha prestiti attivi (non ancora restituiti)
         boolean haPrestitiAttivi = prestitoRepository.existsByUtente_IdAndDataRestituzioneIsNull(id);
         if (haPrestitiAttivi) {
             return ResponseEntity.badRequest().body(Map.of("message", "Impossibile eliminare: l'utente ha prestiti attivi in corso."));
         }
+        // Elimina prima i prestiti storici (già restituiti) dell'utente
+        List<Prestito> prestitiStorici = prestitoRepository.findByUtente_Id(id);
+        prestitoRepository.deleteAll(prestitiStorici);
+        // Elimina l'utente
         utenteRepository.deleteById(id);
         return ResponseEntity.ok(Map.of("message", "Utente eliminato con successo."));
     }
 
-    // GET verifica identità per prestito (ID + nome + cognome devono combaciare)
+    // GET verifica identità per prestito
     @GetMapping("/verifica")
     public ResponseEntity<?> verificaIdentita(
             @RequestParam Integer id,
@@ -84,6 +89,6 @@ public class UtenteController {
                         );
                     }
                 })
-                .orElse(ResponseEntity.badRequest().body(Map.of("message", "Errore: Nessun utente trovato con ID " + id + ". L'utente deve essere registrato per poter effettuare un prestito.")));
+                .orElse(ResponseEntity.badRequest().body(Map.of("message", "Errore: Nessun utente trovato con ID " + id + ".")));
     }
 }
