@@ -18,6 +18,9 @@ public class Utente {
     @Column(name = "data_nascita")
     private LocalDate dataNascita;
 
+    @Column(name = "luogo_nascita")
+    private String luogoNascita;
+
     private String sesso; // Gestisce il CHAR(1) del database
     private String email;
     private String telefono;
@@ -45,4 +48,7 @@ public class Utente {
 
     public String getTelefono() { return telefono; }
     public void setTelefono(String telefono) { this.telefono = telefono; }
+
+    public String getLuogoNascita() { return luogoNascita; }
+    public void setLuogoNascita(String luogoNascita) { this.luogoNascita = luogoNascita; }
 }

@@ -53,6 +53,26 @@ public class UtenteController {
         }
         return ResponseEntity.ok(utenteRepository.save(utente));
     }
+    @PutMapping("/{id}")
+    public ResponseEntity<?> aggiornaUtente(
+            @PathVariable Integer id,
+            @RequestBody Utente utente) {
+
+        return utenteRepository.findById(id)
+                .map(u -> {
+                    u.setNome(utente.getNome());
+                    u.setCognome(utente.getCognome());
+                    u.setSesso(utente.getSesso());
+                    u.setDataNascita(utente.getDataNascita());
+                    u.setLuogoNascita(utente.getLuogoNascita());
+                    u.setEmail(utente.getEmail());
+                    u.setTelefono(utente.getTelefono());
+                    return ResponseEntity.ok((Object) utenteRepository.save(u));
+                })
+                .orElse(ResponseEntity.badRequest()
+                        .body((Object) Map.of("message",
+                                "Utente con ID " + id + " non trovato.")));
+    }
 
     // DELETE utente — bloccato se ha prestiti attivi, elimina i prestiti storici prima
     @DeleteMapping("/{id}")

@@ -2,6 +2,7 @@
 import { ref, onMounted } from 'vue';
 import axios from 'axios';
 
+// ─── Tipi ──────────────────────────────────────────────────────────────────
 
 interface Autore {
   id?: number;
@@ -15,10 +16,7 @@ interface Libro {
   codiceIsbn: string;
   titolo: string;
   annoPubblicazione?: number | null;
-  autore: { id: number | string };
-  sala?: string;
-  scaffale?: string;
-  ripiano?: string;
+  autore: { id: number | string; nome?: string; cognome?: string };
 }
 
 interface Utente {
@@ -48,25 +46,33 @@ interface Prestito {
   dataRestituzione?: string | null;
 }
 
+// ─── Stato globale ─────────────────────────────────────────────────────────
 
 const sezioneAttiva = ref<'utenti' | 'libri' | 'autori' | 'prestiti'>('utenti');
 
-// Ricerca globale
-const termineRicerca = ref('');
-const risultatiRicerca = ref<{ libri: any[], autori: any[], utenti: any[] } | null>(null);
-const ricercaInCorso = ref(false);
+const listaUtenti   = ref<Utente[]>([]);
+const listaLibri    = ref<Libro[]>([]);
+const listaAutori   = ref<Autore[]>([]);
+const listaPrestiti = ref<Prestito[]>([]);
+const listaCopie    = ref<CopiaLibro[]>([]);
+
+const messaggioSuccesso = ref('');
+const messaggioErrore   = ref('');
+
+// ─── Ricerca globale ───────────────────────────────────────────────────────
+
+const termineRicerca   = ref('');
+const risultatiRicerca = ref<{ libri: Libro[]; autori: Autore[]; utenti: Utente[] } | null>(null);
+const ricercaInCorso   = ref(false);
 
 async function eseguiRicerca() {
   const q = termineRicerca.value.trim();
-  if (!q) {
-    risultatiRicerca.value = null;
-    return;
-  }
+  if (!q) { risultatiRicerca.value = null; return; }
   ricercaInCorso.value = true;
   try {
     const res = await axios.get('http://localhost:8080/ricerca', { params: { q } });
     risultatiRicerca.value = res.data;
-  } catch (e) {
+  } catch {
     mostraErrore('Errore durante la ricerca.');
   } finally {
     ricercaInCorso.value = false;
@@ -74,7 +80,7 @@ async function eseguiRicerca() {
 }
 
 function chiudiRicerca() {
-  termineRicerca.value = '';
+  termineRicerca.value   = '';
   risultatiRicerca.value = null;
 }
 
@@ -83,33 +89,21 @@ function vaiA(sezione: 'utenti' | 'libri' | 'autori' | 'prestiti') {
   chiudiRicerca();
 }
 
-const listaUtenti   = ref<Utente[]>([]);
-const listaLibri    = ref<Libro[]>([]);
-const listaAutori   = ref<Autore[]>([]);
-const listaPrestiti = ref<Prestito[]>([]);
-const listaCopie    = ref<CopiaLibro[]>([]);
-
-// Copie per libro (sezione libri)
-const copieLibroSelezionato = ref<CopiaLibro[]>([]);
-const isbnLibroSelezionato  = ref('');
-const titoloLibroSelezionato = ref('');
-
-const messaggioSuccesso = ref('');
-const messaggioErrore   = ref('');
+// ─── Notifiche ─────────────────────────────────────────────────────────────
 
 function mostraSuccesso(msg: string) {
   messaggioSuccesso.value = msg;
   messaggioErrore.value   = '';
   setTimeout(() => { messaggioSuccesso.value = ''; }, 4000);
 }
+
 function mostraErrore(msg: string) {
   messaggioErrore.value   = msg;
   messaggioSuccesso.value = '';
   setTimeout(() => { messaggioErrore.value = ''; }, 6000);
 }
 
-// Estrae il messaggio di errore dalla risposta axios in modo robusto
-function estraiErrore(e: any, fallback = 'Errore durante l\'operazione.'): string {
+function estraiErrore(e: any, fallback = "Errore durante l'operazione."): string {
   const data = e.response?.data;
   if (!data) return fallback;
   if (typeof data === 'string') return data;
@@ -119,286 +113,273 @@ function estraiErrore(e: any, fallback = 'Errore durante l\'operazione.'): strin
 
 // ─── Utenti ────────────────────────────────────────────────────────────────
 
-const nuovoUtente = ref<Utente>({
+const formUtente = ref<Utente>({
   nome: '', cognome: '', sesso: '', dataNascita: '', luogoNascita: '', email: '', telefono: ''
 });
+const utenteInModifica = ref<number | null>(null);
 
-async function caricaUtenti() {
-  try {
-    const res = await axios.get('http://localhost:8080/utenti');
-    listaUtenti.value = res.data;
-  } catch (e) { console.error(e); }
+const oggiISO = new Date().toISOString().split('T')[0];
+
+function resetFormUtente() {
+  formUtente.value     = { nome: '', cognome: '', sesso: '', dataNascita: '', luogoNascita: '', email: '', telefono: '' };
+  utenteInModifica.value = null;
 }
 
-async function aggiungiUtente() {
-  if (!nuovoUtente.value.nome.trim() || !nuovoUtente.value.cognome.trim() || !nuovoUtente.value.email.trim()) {
+async function caricaUtenti() {
+  try { listaUtenti.value = (await axios.get('http://localhost:8080/utenti')).data; }
+  catch (e) { console.error(e); }
+}
+
+function iniziaModificaUtente(u: Utente) {
+  utenteInModifica.value = u.id!;
+  formUtente.value = {
+    nome: u.nome, cognome: u.cognome, sesso: u.sesso || '',
+    dataNascita: u.dataNascita || '', luogoNascita: u.luogoNascita || '',
+    email: u.email, telefono: u.telefono || ''
+  };
+  window.scrollTo({ top: 0, behavior: 'smooth' });
+}
+
+function validaUtente(): boolean {
+  if (!formUtente.value.nome.trim() || !formUtente.value.cognome.trim() || !formUtente.value.email.trim()) {
     mostraErrore('Nome, cognome ed email sono obbligatori.');
-    return;
+    return false;
   }
+  if (formUtente.value.dataNascita && new Date(formUtente.value.dataNascita) > new Date()) {
+    mostraErrore('La data di nascita non può essere successiva a oggi.');
+    return false;
+  }
+  return true;
+}
+
+async function salvaUtente() {
+  if (!validaUtente()) return;
   try {
-    await axios.post('http://localhost:8080/utenti', nuovoUtente.value);
-    nuovoUtente.value = { nome: '', cognome: '', sesso: '', dataNascita: '', luogoNascita: '', email: '', telefono: '' };
+    await axios.post('http://localhost:8080/utenti', formUtente.value);
     mostraSuccesso('Utente aggiunto con successo!');
+    resetFormUtente();
     caricaUtenti();
-  } catch (e: any) {
-    mostraErrore(estraiErrore(e, 'Errore durante il salvataggio.'));
-  }
+  } catch (e: any) { mostraErrore(estraiErrore(e, 'Errore durante il salvataggio.')); }
+}
+
+async function aggiornaUtente() {
+  if (utenteInModifica.value == null) return;
+  if (!validaUtente()) return;
+  try {
+    await axios.put(`http://localhost:8080/utenti/${utenteInModifica.value}`, formUtente.value);
+    mostraSuccesso('Utente aggiornato con successo!');
+    resetFormUtente();
+    caricaUtenti();
+  } catch (e: any) { mostraErrore(estraiErrore(e, "Errore durante l'aggiornamento.")); }
 }
 
 async function eliminaUtente(id: number) {
   if (!confirm('Sei sicuro di voler eliminare questo utente?')) return;
   try {
-    await axios.delete('http://localhost:8080/utenti/' + id);
+    await axios.delete(`http://localhost:8080/utenti/${id}`);
     mostraSuccesso('Utente eliminato con successo.');
     caricaUtenti();
-  } catch (e: any) {
-    mostraErrore(estraiErrore(e, 'Errore durante eliminazione.'));
-  }
+  } catch (e: any) { mostraErrore(estraiErrore(e, 'Errore durante eliminazione.')); }
 }
 
 // ─── Libri ─────────────────────────────────────────────────────────────────
 
-const nuovoLibro = ref({
-  codiceIsbn: '', titolo: '', annoPubblicazione: null as number | null,
-  autore: { id: '' as string | number }
-});
+const formLibro = ref({ codiceIsbn: '', titolo: '', annoPubblicazione: null as number | null, autore: { id: '' as string | number } });
+
+const copieLibroSelezionato  = ref<CopiaLibro[]>([]);
+const isbnLibroSelezionato   = ref('');
+const titoloLibroSelezionato = ref('');
 
 async function caricaLibri() {
-  try {
-    const res = await axios.get('http://localhost:8080/libri');
-    listaLibri.value = res.data;
-  } catch (e) { console.error(e); }
+  try { listaLibri.value = (await axios.get('http://localhost:8080/libri')).data; }
+  catch (e) { console.error(e); }
 }
 
-async function aggiungiLibro() {
-  if (!nuovoLibro.value.codiceIsbn.trim() || !nuovoLibro.value.titolo.trim() || !nuovoLibro.value.autore.id) {
+async function salvaLibro() {
+  if (!formLibro.value.codiceIsbn.trim() || !formLibro.value.titolo.trim() || !formLibro.value.autore.id) {
     mostraErrore('ISBN, titolo e autore sono obbligatori.');
     return;
   }
   try {
-    await axios.post('http://localhost:8080/libri', nuovoLibro.value);
-    nuovoLibro.value = { codiceIsbn: '', titolo: '', annoPubblicazione: null, autore: { id: '' } };
+    await axios.post('http://localhost:8080/libri', formLibro.value);
+    formLibro.value = { codiceIsbn: '', titolo: '', annoPubblicazione: null, autore: { id: '' } };
     mostraSuccesso('Libro aggiunto al catalogo!');
     caricaLibri();
-  } catch (e: any) {
-    mostraErrore(estraiErrore(e, 'Errore durante il salvataggio.'));
-  }
+  } catch (e: any) { mostraErrore(estraiErrore(e, 'Errore durante il salvataggio.')); }
 }
 
 async function eliminaLibro(isbn: string) {
   if (!confirm('Sei sicuro di voler eliminare questo libro e tutte le sue copie?')) return;
   try {
-    await axios.delete('http://localhost:8080/libri/' + isbn);
-    // Chiudi pannello copie se era aperto per questo libro
+    await axios.delete(`http://localhost:8080/libri/${isbn}`);
     if (isbnLibroSelezionato.value === isbn) {
-      isbnLibroSelezionato.value = '';
+      isbnLibroSelezionato.value  = '';
       copieLibroSelezionato.value = [];
       titoloLibroSelezionato.value = '';
     }
-    mostraSuccesso('Libro e tutte le sue copie eliminati dal catalogo.');
+    mostraSuccesso('Libro e copie eliminati dal catalogo.');
     caricaLibri();
-  } catch (e: any) {
-    mostraErrore(estraiErrore(e, 'Errore durante eliminazione.'));
-  }
-}
-
-async function aggiungiCopie(isbn: string, titolo: string) {
-  const quantitaStr = prompt('Quante copie vuoi aggiungere per "' + titolo + '"?', '2');
-  if (!quantitaStr) return;
-  const quantita = parseInt(quantitaStr);
-  if (isNaN(quantita) || quantita < 1 || quantita > 50) {
-    mostraErrore('Inserisci un numero valido tra 1 e 50.');
-    return;
-  }
-  const stato = prompt('Stato di conservazione delle copie?\n1 = Nuovo\n2 = Ottimo\n3 = Buono\n4 = Usato\n5 = Rovinato\n\nScrivi il numero:', '3');
-  if (!stato) return;
-  const statoMap: Record<string, string> = { '1': 'Nuovo', '2': 'Ottimo', '3': 'Buono', '4': 'Usato', '5': 'Rovinato' };
-  const statoFinale = statoMap[stato.trim()] || 'Buono';
-  try {
-    const res = await axios.post('http://localhost:8080/libri/' + isbn + '/copie', null, {
-      params: { quantita, stato: statoFinale }
-    });
-    mostraSuccesso(res.data);
-    // Aggiorna il pannello copie se è aperto per questo libro
-    if (isbnLibroSelezionato.value === isbn) {
-      await vediCopieLibroRefresh(isbn);
-    }
-  } catch (e: any) {
-    mostraErrore(estraiErrore(e, 'Errore durante aggiunta copie.'));
-  }
+  } catch (e: any) { mostraErrore(estraiErrore(e, 'Errore durante eliminazione.')); }
 }
 
 async function vediCopieLibro(isbn: string, titolo: string) {
   if (isbnLibroSelezionato.value === isbn) {
-    isbnLibroSelezionato.value = '';
+    isbnLibroSelezionato.value  = '';
     copieLibroSelezionato.value = [];
     titoloLibroSelezionato.value = '';
     return;
   }
   try {
-    const res = await axios.get('http://localhost:8080/libri/' + isbn + '/copie');
-    copieLibroSelezionato.value = res.data;
-    isbnLibroSelezionato.value  = isbn;
+    copieLibroSelezionato.value  = (await axios.get(`http://localhost:8080/libri/${isbn}/copie`)).data;
+    isbnLibroSelezionato.value   = isbn;
     titoloLibroSelezionato.value = titolo;
-  } catch (e: any) {
-    mostraErrore(estraiErrore(e, 'Errore nel caricamento copie.'));
-  }
+  } catch (e: any) { mostraErrore(estraiErrore(e, 'Errore nel caricamento copie.')); }
 }
 
-async function vediCopieLibroRefresh(isbn: string) {
+async function refreshCopie(isbn: string) {
+  try { copieLibroSelezionato.value = (await axios.get(`http://localhost:8080/libri/${isbn}/copie`)).data; }
+  catch (e: any) { mostraErrore(estraiErrore(e, 'Errore nel caricamento copie.')); }
+}
+
+async function aggiungiCopie(isbn: string, titolo: string) {
+  const quantitaStr = prompt(`Quante copie vuoi aggiungere per "${titolo}"?`, '2');
+  if (!quantitaStr) return;
+  const quantita = parseInt(quantitaStr);
+  if (isNaN(quantita) || quantita < 1 || quantita > 50) { mostraErrore('Inserisci un numero valido tra 1 e 50.'); return; }
+  const stato = prompt('Stato di conservazione:\n1 = Nuovo\n2 = Ottimo\n3 = Buono\n4 = Usato\n5 = Rovinato\n\nScrivi il numero:', '3');
+  if (!stato) return;
+  const statoMap: Record<string, string> = { '1': 'Nuovo', '2': 'Ottimo', '3': 'Buono', '4': 'Usato', '5': 'Rovinato' };
+  const statoFinale = statoMap[stato.trim()] || 'Buono';
   try {
-    const res = await axios.get('http://localhost:8080/libri/' + isbn + '/copie');
-    copieLibroSelezionato.value = res.data;
-  } catch (e: any) {
-    mostraErrore(estraiErrore(e, 'Errore nel caricamento copie.'));
-  }
+    const res = await axios.post(`http://localhost:8080/libri/${isbn}/copie`, null, { params: { quantita, stato: statoFinale } });
+    mostraSuccesso(res.data);
+    if (isbnLibroSelezionato.value === isbn) await refreshCopie(isbn);
+  } catch (e: any) { mostraErrore(estraiErrore(e, 'Errore durante aggiunta copie.')); }
 }
 
-// NUOVO: Elimina singola copia
 async function eliminaCopia(isbn: string, idCopia: number) {
-  if (!confirm('Sei sicuro di voler eliminare la copia #' + idCopia + '?\nNon è possibile se è attualmente in prestito.')) return;
+  if (!confirm(`Sei sicuro di voler eliminare la copia #${idCopia}?\nNon è possibile se è attualmente in prestito.`)) return;
   try {
-    await axios.delete('http://localhost:8080/libri/' + isbn + '/copie/' + idCopia);
-    mostraSuccesso('Copia #' + idCopia + ' eliminata con successo.');
-    await vediCopieLibroRefresh(isbn);
-  } catch (e: any) {
-    mostraErrore(estraiErrore(e, 'Errore durante eliminazione copia.'));
-  }
+    await axios.delete(`http://localhost:8080/libri/${isbn}/copie/${idCopia}`);
+    mostraSuccesso(`Copia #${idCopia} eliminata con successo.`);
+    await refreshCopie(isbn);
+  } catch (e: any) { mostraErrore(estraiErrore(e, 'Errore durante eliminazione copia.')); }
 }
 
 // ─── Autori ────────────────────────────────────────────────────────────────
 
-const nuovoAutore = ref<Autore>({ nome: '', cognome: '', dataNascita: '', dataMorte: '' });
+const formAutore = ref<Autore>({ nome: '', cognome: '', dataNascita: '', dataMorte: '' });
 
 async function caricaAutori() {
-  try {
-    const res = await axios.get('http://localhost:8080/autori');
-    listaAutori.value = res.data;
-  } catch (e) { console.error(e); }
+  try { listaAutori.value = (await axios.get('http://localhost:8080/autori')).data; }
+  catch (e) { console.error(e); }
 }
 
-async function aggiungiAutore() {
-  if (!nuovoAutore.value.nome.trim() || !nuovoAutore.value.cognome.trim()) {
+async function salvaAutore() {
+  if (!formAutore.value.nome.trim() || !formAutore.value.cognome.trim()) {
     mostraErrore('Nome e cognome autore sono obbligatori.');
     return;
   }
+  const oggi = new Date(); oggi.setHours(0, 0, 0, 0);
+  if (formAutore.value.dataNascita && new Date(formAutore.value.dataNascita) > oggi) {
+    mostraErrore('La data di nascita non può essere successiva a oggi.'); return;
+  }
+  if (formAutore.value.dataMorte && new Date(formAutore.value.dataMorte) > oggi) {
+    mostraErrore('La data di morte non può essere successiva a oggi.'); return;
+  }
+  if (formAutore.value.dataNascita && formAutore.value.dataMorte &&
+      new Date(formAutore.value.dataMorte) < new Date(formAutore.value.dataNascita)) {
+    mostraErrore('La data di morte non può essere precedente alla data di nascita.'); return;
+  }
   try {
-    const payload: any = {
-      nome: nuovoAutore.value.nome,
-      cognome: nuovoAutore.value.cognome,
-    };
-    if (nuovoAutore.value.dataNascita) payload.dataNascita = nuovoAutore.value.dataNascita;
-    if (nuovoAutore.value.dataMorte)   payload.dataMorte   = nuovoAutore.value.dataMorte;
+    const payload: any = { nome: formAutore.value.nome, cognome: formAutore.value.cognome };
+    if (formAutore.value.dataNascita) payload.dataNascita = formAutore.value.dataNascita;
+    if (formAutore.value.dataMorte)  payload.dataMorte   = formAutore.value.dataMorte;
     await axios.post('http://localhost:8080/autori', payload);
-    nuovoAutore.value = { nome: '', cognome: '', dataNascita: '', dataMorte: '' };
+    formAutore.value = { nome: '', cognome: '', dataNascita: '', dataMorte: '' };
     mostraSuccesso('Autore aggiunto con successo!');
     caricaAutori();
-  } catch (e: any) {
-    mostraErrore(estraiErrore(e, 'Errore durante il salvataggio.'));
-  }
+  } catch (e: any) { mostraErrore(estraiErrore(e, 'Errore durante il salvataggio.')); }
 }
 
 async function eliminaAutore(id: number) {
   if (!confirm('Sei sicuro di voler eliminare questo autore?\nVerranno eliminati anche tutti i suoi libri e le relative copie.\nNon è possibile se uno dei libri è in prestito.')) return;
   try {
-    await axios.delete('http://localhost:8080/autori/' + id);
+    await axios.delete(`http://localhost:8080/autori/${id}`);
     mostraSuccesso('Autore, libri e copie associati eliminati con successo.');
     caricaAutori();
     caricaLibri();
-  } catch (e: any) {
-    mostraErrore(estraiErrore(e, 'Errore durante eliminazione.'));
-  }
+  } catch (e: any) { mostraErrore(estraiErrore(e, 'Errore durante eliminazione.')); }
 }
 
 // ─── Prestiti ──────────────────────────────────────────────────────────────
 
-const nuovoPrestito = ref({
-  idUtente: '' as string | number,
-  nomeUtente: '',
-  cognomeUtente: '',
-  idCopia: '' as string | number,
-});
-
+const formPrestito = ref({ idUtente: '' as string | number, nomeUtente: '', cognomeUtente: '', idCopia: '' as string | number });
 const isbnPerCopie = ref('');
 
 async function caricaPrestiti() {
-  try {
-    const res = await axios.get('http://localhost:8080/prestiti');
-    listaPrestiti.value = res.data;
-  } catch (e) { console.error(e); }
+  try { listaPrestiti.value = (await axios.get('http://localhost:8080/prestiti')).data; }
+  catch (e) { console.error(e); }
 }
 
 async function caricaCopieDisponibili() {
-  if (!isbnPerCopie.value.trim()) {
-    mostraErrore('Inserisci un ISBN per cercare le copie.');
-    return;
-  }
+  if (!isbnPerCopie.value.trim()) { mostraErrore('Inserisci un ISBN per cercare le copie.'); return; }
   try {
-    const res = await axios.get('http://localhost:8080/libri/' + isbnPerCopie.value.trim() + '/copie');
-    listaCopie.value = (res.data as CopiaLibro[]).filter(c => c.disponibile);
-    if (listaCopie.value.length === 0) {
-      mostraErrore('Nessuna copia disponibile per questo ISBN.');
-    }
-  } catch (e: any) {
-    mostraErrore(estraiErrore(e, 'Errore nel caricamento copie.'));
-    listaCopie.value = [];
-  }
+    const tutte: CopiaLibro[] = (await axios.get(`http://localhost:8080/libri/${isbnPerCopie.value.trim()}/copie`)).data;
+    listaCopie.value = tutte.filter(c => c.disponibile);
+    if (listaCopie.value.length === 0) mostraErrore('Nessuna copia disponibile per questo ISBN.');
+  } catch (e: any) { mostraErrore(estraiErrore(e, 'Errore nel caricamento copie.')); listaCopie.value = []; }
 }
 
 async function attivaPrestito() {
-  if (!nuovoPrestito.value.idUtente || !nuovoPrestito.value.nomeUtente.trim() ||
-      !nuovoPrestito.value.cognomeUtente.trim() || !nuovoPrestito.value.idCopia) {
+  if (!formPrestito.value.idUtente || !formPrestito.value.nomeUtente.trim() ||
+      !formPrestito.value.cognomeUtente.trim() || !formPrestito.value.idCopia) {
     mostraErrore('Tutti i campi del prestito sono obbligatori.');
     return;
   }
   try {
     const res = await axios.post('http://localhost:8080/prestiti/attiva', null, {
       params: {
-        idUtente:      nuovoPrestito.value.idUtente,
-        nomeUtente:    nuovoPrestito.value.nomeUtente,
-        cognomeUtente: nuovoPrestito.value.cognomeUtente,
-        idCopia:       nuovoPrestito.value.idCopia,
+        idUtente:      formPrestito.value.idUtente,
+        nomeUtente:    formPrestito.value.nomeUtente,
+        cognomeUtente: formPrestito.value.cognomeUtente,
+        idCopia:       formPrestito.value.idCopia,
       }
     });
-    nuovoPrestito.value = { idUtente: '', nomeUtente: '', cognomeUtente: '', idCopia: '' };
-    listaCopie.value = [];
+    formPrestito.value = { idUtente: '', nomeUtente: '', cognomeUtente: '', idCopia: '' };
+    listaCopie.value   = [];
     isbnPerCopie.value = '';
     mostraSuccesso(res.data);
     caricaPrestiti();
-  } catch (e: any) {
-    mostraErrore(estraiErrore(e, 'Errore durante attivazione prestito.'));
-  }
+  } catch (e: any) { mostraErrore(estraiErrore(e, 'Errore durante attivazione prestito.')); }
 }
 
 async function restituisciLibro(idPrestito: number) {
   if (!confirm('Confermi la restituzione di questo libro?')) return;
   try {
-    const res = await axios.post('http://localhost:8080/prestiti/restituisci', null, {
-      params: { idPrestito }
-    });
+    const res = await axios.post('http://localhost:8080/prestiti/restituisci', null, { params: { idPrestito } });
     mostraSuccesso(res.data);
     caricaPrestiti();
-  } catch (e: any) {
-    mostraErrore(estraiErrore(e, 'Errore durante la restituzione.'));
-  }
+  } catch (e: any) { mostraErrore(estraiErrore(e, 'Errore durante la restituzione.')); }
 }
 
 async function eliminaPrestito(idPrestito: number) {
   if (!confirm('Sei sicuro di voler eliminare questo prestito dallo storico?')) return;
   try {
-    await axios.delete('http://localhost:8080/prestiti/' + idPrestito);
+    await axios.delete(`http://localhost:8080/prestiti/${idPrestito}`);
     mostraSuccesso('Prestito eliminato dallo storico.');
     caricaPrestiti();
-  } catch (e: any) {
-    mostraErrore(estraiErrore(e, 'Errore durante eliminazione prestito.'));
-  }
+  } catch (e: any) { mostraErrore(estraiErrore(e, 'Errore durante eliminazione prestito.')); }
 }
+
+// ─── Utility ───────────────────────────────────────────────────────────────
 
 function isScaduto(dataScadenza: string, dataRestituzione?: string | null): boolean {
   if (dataRestituzione) return false;
   return new Date(dataScadenza) < new Date();
 }
 
+// ─── Mount ─────────────────────────────────────────────────────────────────
 
 onMounted(async () => {
   await caricaAutori();
@@ -410,11 +391,13 @@ onMounted(async () => {
 
 <template>
   <div class="page">
+
+    <!-- Header -->
     <header class="header">
       <h1>🏛️ Biblioteca — Pannello di Gestione</h1>
     </header>
 
-    <!-- Barra di ricerca globale -->
+    <!-- Ricerca globale -->
     <div class="barra-ricerca-container">
       <div class="barra-ricerca">
         <span class="icona-cerca">🔍</span>
@@ -427,55 +410,32 @@ onMounted(async () => {
         <button v-if="termineRicerca" class="btn-chiudi-ricerca" @click="chiudiRicerca">✕</button>
       </div>
 
-      <!-- Pannello risultati ricerca -->
       <div v-if="risultatiRicerca" class="pannello-risultati">
         <div v-if="ricercaInCorso" class="risultato-vuoto">Ricerca in corso...</div>
         <template v-else>
-          <!-- Libri -->
           <div class="gruppo-risultati" v-if="risultatiRicerca.libri.length > 0">
             <div class="gruppo-titolo" @click="vaiA('libri')">📚 Libri ({{ risultatiRicerca.libri.length }})</div>
-            <div
-                v-for="l in risultatiRicerca.libri"
-                :key="l.codiceIsbn"
-                class="risultato-item"
-                @click="vaiA('libri')"
-            >
+            <div v-for="l in risultatiRicerca.libri" :key="l.codiceIsbn" class="risultato-item" @click="vaiA('libri')">
               <span class="risultato-nome">{{ l.titolo }}</span>
-              <span class="risultato-dettaglio">{{ l.autore?.cognome }} {{ l.autore?.nome }} — ISBN: {{ l.codiceIsbn }}</span>
+              <span class="risultato-dettaglio">{{ (l.autore as any)?.cognome }} {{ (l.autore as any)?.nome }} — ISBN: {{ l.codiceIsbn }}</span>
             </div>
           </div>
-
-          <!-- Autori -->
           <div class="gruppo-risultati" v-if="risultatiRicerca.autori.length > 0">
             <div class="gruppo-titolo" @click="vaiA('autori')">✍️ Autori ({{ risultatiRicerca.autori.length }})</div>
-            <div
-                v-for="a in risultatiRicerca.autori"
-                :key="a.id"
-                class="risultato-item"
-                @click="vaiA('autori')"
-            >
+            <div v-for="a in risultatiRicerca.autori" :key="a.id" class="risultato-item" @click="vaiA('autori')">
               <span class="risultato-nome">{{ a.cognome }} {{ a.nome }}</span>
               <span class="risultato-dettaglio">ID: {{ a.id }}</span>
             </div>
           </div>
-
-          <!-- Utenti -->
           <div class="gruppo-risultati" v-if="risultatiRicerca.utenti.length > 0">
             <div class="gruppo-titolo" @click="vaiA('utenti')">👤 Utenti ({{ risultatiRicerca.utenti.length }})</div>
-            <div
-                v-for="u in risultatiRicerca.utenti"
-                :key="u.id"
-                class="risultato-item"
-                @click="vaiA('utenti')"
-            >
+            <div v-for="u in risultatiRicerca.utenti" :key="u.id" class="risultato-item" @click="vaiA('utenti')">
               <span class="risultato-nome">{{ u.cognome }} {{ u.nome }}</span>
-              <span class="risultato-dettaglio">{{ u.email }}</span>
+              <span class="risultato-dettaglio">ID: {{ u.id }} — {{ u.email }}</span>
             </div>
           </div>
-
-          <!-- Nessun risultato -->
           <div
-              v-if="risultatiRicerca.libri.length === 0 && risultatiRicerca.autori.length === 0 && risultatiRicerca.utenti.length === 0"
+              v-if="!risultatiRicerca.libri.length && !risultatiRicerca.autori.length && !risultatiRicerca.utenti.length"
               class="risultato-vuoto"
           >
             Nessun risultato per "{{ termineRicerca }}"
@@ -484,9 +444,11 @@ onMounted(async () => {
       </div>
     </div>
 
+    <!-- Notifiche -->
     <div v-if="messaggioSuccesso" class="notifica successo">✅ {{ messaggioSuccesso }}</div>
     <div v-if="messaggioErrore"   class="notifica errore">⚠️ {{ messaggioErrore }}</div>
 
+    <!-- Tab navigazione -->
     <nav class="tab-nav">
       <button :class="['tab', sezioneAttiva === 'utenti'   ? 'attivo' : '']" @click="sezioneAttiva = 'utenti'">👤 Utenti</button>
       <button :class="['tab', sezioneAttiva === 'libri'    ? 'attivo' : '']" @click="sezioneAttiva = 'libri'">📚 Libri</button>
@@ -494,22 +456,23 @@ onMounted(async () => {
       <button :class="['tab', sezioneAttiva === 'prestiti' ? 'attivo' : '']" @click="sezioneAttiva = 'prestiti'">📋 Prestiti</button>
     </nav>
 
-    <!-- Utenti -->
+    <!-- ═══ SEZIONE UTENTI ═══════════════════════════════════════════════════ -->
     <section v-if="sezioneAttiva === 'utenti'" class="sezione">
+
       <div class="card">
-        <h2>➕ Inserisci Nuovo Utente</h2>
+        <h2>{{ utenteInModifica !== null ? '✏️ Modifica Utente' : '➕ Inserisci Nuovo Utente' }}</h2>
         <div class="form-grid">
           <div class="campo">
             <label>Nome *</label>
-            <input v-model="nuovoUtente.nome" placeholder="es. Mario" />
+            <input v-model="formUtente.nome" placeholder="es. Mario" />
           </div>
           <div class="campo">
             <label>Cognome *</label>
-            <input v-model="nuovoUtente.cognome" placeholder="es. Rossi" />
+            <input v-model="formUtente.cognome" placeholder="es. Rossi" />
           </div>
           <div class="campo">
             <label>Sesso</label>
-            <select v-model="nuovoUtente.sesso">
+            <select v-model="formUtente.sesso">
               <option value="">-- Seleziona --</option>
               <option value="M">Maschio</option>
               <option value="F">Femmina</option>
@@ -517,22 +480,32 @@ onMounted(async () => {
           </div>
           <div class="campo">
             <label>Data di Nascita</label>
-            <input v-model="nuovoUtente.dataNascita" type="date" />
+            <input v-model="formUtente.dataNascita" type="date" :max="oggiISO" />
           </div>
           <div class="campo">
             <label>Luogo di Nascita</label>
-            <input v-model="nuovoUtente.luogoNascita" placeholder="es. Roma" />
+            <input v-model="formUtente.luogoNascita" placeholder="es. Roma" />
           </div>
           <div class="campo">
             <label>Email *</label>
-            <input v-model="nuovoUtente.email" type="email" placeholder="mario@email.it" />
+            <input v-model="formUtente.email" type="email" placeholder="mario@email.it" />
           </div>
           <div class="campo">
             <label>Telefono</label>
-            <input v-model="nuovoUtente.telefono" placeholder="es. 3331234567" />
+            <input v-model="formUtente.telefono" placeholder="es. 3331234567" />
           </div>
         </div>
-        <button class="btn-primario" @click="aggiungiUtente">💾 Salva Utente</button>
+
+        <!-- Bottoni condizionali: modalità inserimento vs modifica -->
+        <div class="azioni-form">
+          <template v-if="utenteInModifica !== null">
+            <button class="btn-primario btn-aggiorna" @click="aggiornaUtente">✏️ Aggiorna Utente</button>
+            <button class="btn-secondario" @click="resetFormUtente">✕ Annulla</button>
+          </template>
+          <template v-else>
+            <button class="btn-primario" @click="salvaUtente">💾 Salva Utente</button>
+          </template>
+        </div>
       </div>
 
       <div class="card">
@@ -548,7 +521,7 @@ onMounted(async () => {
           <tr v-if="listaUtenti.length === 0">
             <td colspan="8" class="vuoto">Nessun utente registrato.</td>
           </tr>
-          <tr v-for="u in listaUtenti" :key="u.id">
+          <tr v-for="u in listaUtenti" :key="u.id" :class="utenteInModifica === u.id ? 'riga-selezionata' : ''">
             <td>{{ u.id }}</td>
             <td>{{ u.nome }}</td>
             <td>{{ u.cognome }}</td>
@@ -556,8 +529,9 @@ onMounted(async () => {
             <td>{{ u.dataNascita || '—' }}</td>
             <td>{{ u.email }}</td>
             <td>{{ u.telefono || '—' }}</td>
-            <td>
-              <button class="btn-elimina" @click="eliminaUtente(u.id!)">🗑️ Elimina</button>
+            <td class="azioni-cell">
+              <button class="btn-vedi-copie" @click="iniziaModificaUtente(u)">✏️ Modifica</button>
+              <button class="btn-elimina"    @click="eliminaUtente(u.id!)">🗑️ Elimina</button>
             </td>
           </tr>
           </tbody>
@@ -565,26 +539,27 @@ onMounted(async () => {
       </div>
     </section>
 
-    <!-- Libri -->
+    <!-- ═══ SEZIONE LIBRI ════════════════════════════════════════════════════ -->
     <section v-if="sezioneAttiva === 'libri'" class="sezione">
+
       <div class="card">
         <h2>➕ Inserisci Nuovo Libro</h2>
         <div class="form-grid">
           <div class="campo">
             <label>Codice ISBN *</label>
-            <input v-model="nuovoLibro.codiceIsbn" placeholder="es. 978-88-04-67543-1" />
+            <input v-model="formLibro.codiceIsbn" placeholder="es. 978-88-04-67543-1" />
           </div>
           <div class="campo">
             <label>Titolo *</label>
-            <input v-model="nuovoLibro.titolo" placeholder="es. Il Nome della Rosa" />
+            <input v-model="formLibro.titolo" placeholder="es. Il Nome della Rosa" />
           </div>
           <div class="campo">
             <label>Anno Pubblicazione</label>
-            <input v-model.number="nuovoLibro.annoPubblicazione" type="number" placeholder="es. 1980" min="1000" max="2100" />
+            <input v-model.number="formLibro.annoPubblicazione" type="number" placeholder="es. 1980" min="1000" max="2100" />
           </div>
           <div class="campo">
             <label>Autore *</label>
-            <select v-model="nuovoLibro.autore.id">
+            <select v-model="formLibro.autore.id">
               <option value="" disabled>-- Seleziona Autore --</option>
               <option v-for="a in listaAutori" :key="a.id" :value="a.id">
                 {{ a.cognome }} {{ a.nome }}
@@ -592,7 +567,9 @@ onMounted(async () => {
             </select>
           </div>
         </div>
-        <button class="btn-primario" @click="aggiungiLibro">💾 Salva Libro</button>
+        <div class="azioni-form">
+          <button class="btn-primario" @click="salvaLibro">💾 Salva Libro</button>
+        </div>
       </div>
 
       <div class="card">
@@ -617,10 +594,11 @@ onMounted(async () => {
                 <button class="btn-vedi-copie" @click="vediCopieLibro(l.codiceIsbn, l.titolo)">
                   {{ isbnLibroSelezionato === l.codiceIsbn ? '🔼 Chiudi' : '📋 Copie' }}
                 </button>
-                <button class="btn-copie" @click="aggiungiCopie(l.codiceIsbn, l.titolo)">📦 Aggiungi</button>
+                <button class="btn-copie"   @click="aggiungiCopie(l.codiceIsbn, l.titolo)">📦 Aggiungi</button>
                 <button class="btn-elimina" @click="eliminaLibro(l.codiceIsbn)">🗑️</button>
               </td>
             </tr>
+
             <!-- Pannello copie espandibile -->
             <tr v-if="isbnLibroSelezionato === l.codiceIsbn">
               <td colspan="5" style="padding: 0;">
@@ -630,10 +608,7 @@ onMounted(async () => {
                   <table v-else class="tabella-copie">
                     <thead>
                     <tr>
-                      <th>ID Copia</th>
-                      <th>Stato Conservazione</th>
-                      <th>Disponibilità</th>
-                      <th>Azioni</th>
+                      <th>ID Copia</th><th>Stato Conservazione</th><th>Disponibilità</th><th>Azioni</th>
                     </tr>
                     </thead>
                     <tbody>
@@ -641,9 +616,9 @@ onMounted(async () => {
                       <td>#{{ c.idCopia }}</td>
                       <td>{{ c.statoConservazione }}</td>
                       <td>
-                        <span :class="c.disponibile ? 'badge-disponibile' : 'badge-non-disponibile'">
-                          {{ c.disponibile ? '✅ Disponibile' : '❌ In prestito' }}
-                        </span>
+                            <span :class="c.disponibile ? 'badge-disponibile' : 'badge-non-disponibile'">
+                              {{ c.disponibile ? '✅ Disponibile' : '❌ In prestito' }}
+                            </span>
                       </td>
                       <td>
                         <button
@@ -665,29 +640,32 @@ onMounted(async () => {
       </div>
     </section>
 
-    <!-- Autori -->
+    <!-- ═══ SEZIONE AUTORI ═══════════════════════════════════════════════════ -->
     <section v-if="sezioneAttiva === 'autori'" class="sezione">
+
       <div class="card">
         <h2>➕ Inserisci Nuovo Autore</h2>
         <div class="form-grid">
           <div class="campo">
             <label>Nome *</label>
-            <input v-model="nuovoAutore.nome" placeholder="es. Umberto" />
+            <input v-model="formAutore.nome" placeholder="es. Umberto" />
           </div>
           <div class="campo">
             <label>Cognome *</label>
-            <input v-model="nuovoAutore.cognome" placeholder="es. Eco" />
+            <input v-model="formAutore.cognome" placeholder="es. Eco" />
           </div>
           <div class="campo">
             <label>Data di Nascita</label>
-            <input v-model="nuovoAutore.dataNascita" type="date" />
+            <input v-model="formAutore.dataNascita" type="date" />
           </div>
           <div class="campo">
-            <label>Data di Morte <span style="font-weight:400; color:#888">(se deceduto)</span></label>
-            <input v-model="nuovoAutore.dataMorte" type="date" />
+            <label>Data di Morte <span class="label-opzionale">(se deceduto)</span></label>
+            <input v-model="formAutore.dataMorte" type="date" />
           </div>
         </div>
-        <button class="btn-primario" @click="aggiungiAutore">💾 Salva Autore</button>
+        <div class="azioni-form">
+          <button class="btn-primario" @click="salvaAutore">💾 Salva Autore</button>
+        </div>
       </div>
 
       <div class="card">
@@ -707,7 +685,7 @@ onMounted(async () => {
             <td>{{ a.cognome }}</td>
             <td>{{ a.nome }}</td>
             <td>{{ a.dataNascita || '—' }}</td>
-            <td>{{ a.dataMorte || '—' }}</td>
+            <td>{{ a.dataMorte  || '—' }}</td>
             <td>
               <button class="btn-elimina" @click="eliminaAutore(a.id!)">🗑️ Elimina</button>
             </td>
@@ -717,41 +695,48 @@ onMounted(async () => {
       </div>
     </section>
 
-    <!-- Prestiti -->
+    <!-- ═══ SEZIONE PRESTITI ═════════════════════════════════════════════════ -->
     <section v-if="sezioneAttiva === 'prestiti'" class="sezione">
 
       <div class="card">
         <h2>➕ Nuovo Prestito</h2>
         <p class="nota-info">
-          🔒 Per sicurezza il sistema verifica che l'ID, nome e cognome dell'utente coincidano
-          con quelli registrati prima di autorizzare il prestito.
+          🔒 Il sistema verifica che ID, nome e cognome dell'utente coincidano con quelli registrati prima di autorizzare il prestito.
         </p>
         <div class="form-grid">
           <div class="campo">
             <label>ID Utente *</label>
-            <input v-model.number="nuovoPrestito.idUtente" type="number" placeholder="es. 3" />
+            <input v-model.number="formPrestito.idUtente" type="number" placeholder="es. 3" />
           </div>
           <div class="campo">
-            <label>Nome Utente * <span style="color:#888;font-weight:400">(deve corrispondere)</span></label>
-            <input v-model="nuovoPrestito.nomeUtente" placeholder="es. Mario" />
+            <label>Nome Utente * <span class="label-opzionale">(deve corrispondere)</span></label>
+            <input v-model="formPrestito.nomeUtente" placeholder="es. Mario" />
           </div>
           <div class="campo">
-            <label>Cognome Utente * <span style="color:#888;font-weight:400">(deve corrispondere)</span></label>
-            <input v-model="nuovoPrestito.cognomeUtente" placeholder="es. Rossi" />
+            <label>Cognome Utente * <span class="label-opzionale">(deve corrispondere)</span></label>
+            <input v-model="formPrestito.cognomeUtente" placeholder="es. Rossi" />
           </div>
         </div>
 
         <div class="cerca-copie">
           <label>Cerca copie disponibili per ISBN:</label>
           <div class="cerca-row">
-            <input v-model="isbnPerCopie" placeholder="es. 978-88-04-67543-1" />
+            <select v-model="isbnPerCopie" style="flex:1; padding:10px 12px; border:1px solid #cfd8dc; border-radius:6px; font-size:0.95rem;">
+              <option value="" disabled>-- Seleziona un libro --</option>
+              <option v-for="l in listaLibri" :key="l.codiceIsbn" :value="l.codiceIsbn">
+                {{ l.codiceIsbn }} — {{ l.titolo }}
+              </option>
+            </select>
+            <span style="align-self:center; color:#90a4ae; font-size:0.85rem; white-space:nowrap;">oppure scrivi:</span>
+            <input v-model="isbnPerCopie" placeholder="es. 978-88-04-67543-1"
+                   style="flex:1; padding:10px 12px; border:1px solid #cfd8dc; border-radius:6px; font-size:0.95rem;" />
             <button class="btn-secondario" @click="caricaCopieDisponibili">🔍 Cerca Copie</button>
           </div>
         </div>
 
-        <div v-if="listaCopie.length > 0" class="campo">
+        <div v-if="listaCopie.length > 0" class="campo" style="margin-bottom: 20px;">
           <label>Seleziona Copia Disponibile *</label>
-          <select v-model="nuovoPrestito.idCopia">
+          <select v-model="formPrestito.idCopia">
             <option value="" disabled>-- Seleziona una copia --</option>
             <option v-for="c in listaCopie" :key="c.idCopia" :value="c.idCopia">
               Copia #{{ c.idCopia }} — {{ c.libro.titolo }} ({{ c.statoConservazione }})
@@ -759,37 +744,34 @@ onMounted(async () => {
           </select>
         </div>
 
-        <button class="btn-primario" @click="attivaPrestito">📤 Attiva Prestito</button>
+        <div class="azioni-form">
+          <button class="btn-primario" @click="attivaPrestito">📤 Attiva Prestito</button>
+        </div>
       </div>
 
       <div class="card">
         <h2>📋 Storico Prestiti ({{ listaPrestiti.length }})</h2>
-
         <div class="legenda">
           <span class="badge attivo-badge">Attivo</span> — in corso &nbsp;|&nbsp;
-          <span class="badge scaduto-badge">Scaduto</span> — non ancora restituito oltre la data &nbsp;|&nbsp;
+          <span class="badge scaduto-badge">Scaduto</span> — non restituito oltre la data &nbsp;|&nbsp;
           <span class="badge restituito-badge">Restituito</span> — chiuso
         </div>
-
         <table class="tabella">
           <thead>
           <tr>
-            <th>ID</th>
-            <th>Utente</th>
-            <th>Libro (Copia)</th>
-            <th>Data Inizio</th>
-            <th>Scadenza</th>
-            <th>Restituzione</th>
-            <th>Stato</th>
-            <th>Azioni</th>
+            <th>ID</th><th>Utente</th><th>Libro (Copia)</th>
+            <th>Data Inizio</th><th>Scadenza</th><th>Restituzione</th>
+            <th>Stato</th><th>Azioni</th>
           </tr>
           </thead>
           <tbody>
           <tr v-if="listaPrestiti.length === 0">
             <td colspan="8" class="vuoto">Nessun prestito registrato.</td>
           </tr>
-          <tr v-for="p in listaPrestiti" :key="p.idPrestito"
-              :class="p.dataRestituzione ? 'riga-restituita' : isScaduto(p.dataScadenza) ? 'riga-scaduta' : ''">
+          <tr
+              v-for="p in listaPrestiti" :key="p.idPrestito"
+              :class="p.dataRestituzione ? 'riga-restituita' : isScaduto(p.dataScadenza) ? 'riga-scaduta' : ''"
+          >
             <td>{{ p.idPrestito }}</td>
             <td>{{ p.utente?.cognome }} {{ p.utente?.nome }}</td>
             <td>{{ p.copiaLibro?.libro?.titolo }} <span class="copia-id">#{{ p.copiaLibro?.idCopia }}</span></td>
@@ -797,16 +779,14 @@ onMounted(async () => {
             <td>{{ p.dataScadenza }}</td>
             <td>{{ p.dataRestituzione || '—' }}</td>
             <td>
-              <span v-if="p.dataRestituzione"           class="badge restituito-badge">Restituito</span>
+              <span v-if="p.dataRestituzione"             class="badge restituito-badge">Restituito</span>
               <span v-else-if="isScaduto(p.dataScadenza)" class="badge scaduto-badge">Scaduto</span>
-              <span v-else                              class="badge attivo-badge">Attivo</span>
+              <span v-else                                class="badge attivo-badge">Attivo</span>
             </td>
             <td class="azioni-cell">
-              <button
-                  v-if="!p.dataRestituzione"
-                  class="btn-restituzione"
-                  @click="restituisciLibro(p.idPrestito)"
-              >📥 Restituisci</button>
+              <button v-if="!p.dataRestituzione" class="btn-restituzione" @click="restituisciLibro(p.idPrestito)">
+                📥 Restituisci
+              </button>
               <button class="btn-elimina" @click="eliminaPrestito(p.idPrestito)">🗑️</button>
             </td>
           </tr>
@@ -814,10 +794,13 @@ onMounted(async () => {
         </table>
       </div>
     </section>
+
   </div>
 </template>
 
 <style scoped>
+
+/* ─── Layout ─────────────────────────────────────────────────────────────── */
 
 .page {
   font-family: 'Segoe UI', sans-serif;
@@ -833,6 +816,7 @@ onMounted(async () => {
 }
 .header h1 { margin: 0; font-size: 1.6rem; font-weight: 600; }
 
+/* ─── Notifiche ──────────────────────────────────────────────────────────── */
 
 .notifica {
   margin: 16px 40px 0;
@@ -843,10 +827,10 @@ onMounted(async () => {
 .successo { background: #e8f5e9; color: #2e7d32; border-left: 4px solid #43a047; }
 .errore   { background: #ffebee; color: #b71c1c; border-left: 4px solid #e53935; }
 
+/* ─── Tab ────────────────────────────────────────────────────────────────── */
 
 .tab-nav {
   display: flex;
-  gap: 0;
   background: white;
   border-bottom: 2px solid #c5cae9;
   padding: 0 40px;
@@ -864,13 +848,10 @@ onMounted(async () => {
   margin-bottom: -2px;
   transition: all 0.2s;
 }
-.tab:hover { background: #e8eaf6; }
-.tab.attivo {
-  color: #1a237e;
-  border-bottom-color: #1a237e;
-  background: #e8eaf6;
-}
+.tab:hover  { background: #e8eaf6; }
+.tab.attivo { color: #1a237e; border-bottom-color: #1a237e; background: #e8eaf6; }
 
+/* ─── Sezioni e card ─────────────────────────────────────────────────────── */
 
 .sezione { padding: 30px 40px; display: flex; flex-direction: column; gap: 24px; }
 
@@ -882,6 +863,7 @@ onMounted(async () => {
 }
 .card h2 { margin: 0 0 20px; font-size: 1.2rem; color: #1a237e; }
 
+/* ─── Form ───────────────────────────────────────────────────────────────── */
 
 .form-grid {
   display: grid;
@@ -904,6 +886,10 @@ onMounted(async () => {
   box-shadow: 0 0 0 2px rgba(63,81,181,0.15);
 }
 
+.label-opzionale { font-weight: 400; color: #888; }
+
+.azioni-form { display: flex; gap: 12px; margin-top: 4px; }
+
 .nota-info {
   background: #e3f2fd;
   border-left: 4px solid #1976d2;
@@ -925,6 +911,7 @@ onMounted(async () => {
   font-size: 0.95rem;
 }
 
+/* ─── Bottoni ────────────────────────────────────────────────────────────── */
 
 .btn-primario {
   padding: 12px 28px;
@@ -939,16 +926,20 @@ onMounted(async () => {
 }
 .btn-primario:hover { background: #283593; }
 
+.btn-aggiorna { background: #f57c00; }
+.btn-aggiorna:hover { background: #e65100; }
+
 .btn-secondario {
   padding: 10px 18px;
   background: #5c6bc0;
   color: white;
   border: none;
   border-radius: 6px;
-  font-size: 0.9rem;
+  font-size: 0.95rem;
   font-weight: 600;
   cursor: pointer;
   white-space: nowrap;
+  transition: background 0.2s;
 }
 .btn-secondario:hover { background: #3f51b5; }
 
@@ -961,6 +952,7 @@ onMounted(async () => {
   font-size: 0.82rem;
   cursor: pointer;
   font-weight: 600;
+  transition: background 0.2s;
 }
 .btn-elimina:hover { background: #b71c1c; }
 
@@ -974,6 +966,7 @@ onMounted(async () => {
   cursor: pointer;
   font-weight: 600;
   margin-right: 6px;
+  transition: background 0.2s;
 }
 .btn-copie:hover { background: #e65100; }
 
@@ -987,8 +980,23 @@ onMounted(async () => {
   cursor: pointer;
   font-weight: 600;
   margin-right: 6px;
+  transition: background 0.2s;
 }
 .btn-vedi-copie:hover { background: #3949ab; }
+
+.btn-restituzione {
+  padding: 6px 10px;
+  background: #2e7d32;
+  color: white;
+  border: none;
+  border-radius: 5px;
+  font-size: 0.82rem;
+  cursor: pointer;
+  font-weight: 600;
+  margin-right: 6px;
+  transition: background 0.2s;
+}
+.btn-restituzione:hover { background: #1b5e20; }
 
 .btn-elimina-copia {
   padding: 5px 10px;
@@ -999,16 +1007,28 @@ onMounted(async () => {
   font-size: 0.8rem;
   cursor: pointer;
   font-weight: 600;
+  transition: background 0.2s;
 }
 .btn-elimina-copia:hover:not(:disabled) { background: #b71c1c; }
-.btn-elimina-copia:disabled {
-  background: #ccc;
-  color: #888;
-  cursor: not-allowed;
-  opacity: 0.6;
-}
+.btn-elimina-copia:disabled { background: #ccc; color: #888; cursor: not-allowed; opacity: 0.6; }
+
+/* ─── Tabelle ────────────────────────────────────────────────────────────── */
+
+.tabella { width: 100%; border-collapse: collapse; font-size: 0.9rem; }
+.tabella thead tr { background: #e8eaf6; }
+.tabella th { padding: 12px 10px; text-align: left; font-weight: 600; color: #1a237e; border-bottom: 2px solid #c5cae9; }
+.tabella td { padding: 10px 10px; border-bottom: 1px solid #eceff1; vertical-align: middle; }
+.tabella tbody tr:hover { background: #f5f5f5; }
 
 .riga-selezionata { background: #e8eaf6 !important; }
+.riga-restituita td { color: #78909c; }
+.riga-scaduta td   { color: #b71c1c; }
+
+.vuoto      { text-align: center; padding: 30px; color: #90a4ae; font-style: italic; }
+.copia-id   { font-size: 0.78rem; color: #90a4ae; margin-left: 4px; }
+.azioni-cell { white-space: nowrap; }
+
+/* ─── Pannello copie ─────────────────────────────────────────────────────── */
 
 .pannello-copie {
   background: #f5f5f5;
@@ -1022,36 +1042,10 @@ onMounted(async () => {
 .tabella-copie th { padding: 8px 12px; background: #e8eaf6; text-align: left; color: #1a237e; font-weight: 600; }
 .tabella-copie td { padding: 8px 12px; border-bottom: 1px solid #e0e0e0; }
 
-.badge-disponibile    { background: #e8f5e9; color: #2e7d32; padding: 3px 10px; border-radius: 20px; font-weight: 600; font-size: 0.82rem; }
+.badge-disponibile     { background: #e8f5e9; color: #2e7d32; padding: 3px 10px; border-radius: 20px; font-weight: 600; font-size: 0.82rem; }
 .badge-non-disponibile { background: #ffebee; color: #b71c1c; padding: 3px 10px; border-radius: 20px; font-weight: 600; font-size: 0.82rem; }
 
-.btn-restituzione {
-  padding: 6px 10px;
-  background: #2e7d32;
-  color: white;
-  border: none;
-  border-radius: 5px;
-  font-size: 0.82rem;
-  cursor: pointer;
-  font-weight: 600;
-  margin-right: 6px;
-}
-.btn-restituzione:hover { background: #1b5e20; }
-
-
-.tabella { width: 100%; border-collapse: collapse; font-size: 0.9rem; }
-.tabella thead tr { background: #e8eaf6; }
-.tabella th { padding: 12px 10px; text-align: left; font-weight: 600; color: #1a237e; border-bottom: 2px solid #c5cae9; }
-.tabella td { padding: 10px 10px; border-bottom: 1px solid #eceff1; vertical-align: middle; }
-.tabella tbody tr:hover { background: #f5f5f5; }
-
-.riga-restituita td { color: #78909c; }
-.riga-scaduta td   { color: #b71c1c; }
-
-.vuoto { text-align: center; padding: 30px; color: #90a4ae; font-style: italic; }
-.copia-id { font-size: 0.78rem; color: #90a4ae; margin-left: 4px; }
-.azioni-cell { white-space: nowrap; }
-
+/* ─── Badge prestiti ─────────────────────────────────────────────────────── */
 
 .badge {
   display: inline-block;
@@ -1064,10 +1058,10 @@ onMounted(async () => {
 .scaduto-badge    { background: #ffebee; color: #b71c1c; }
 .restituito-badge { background: #e8f5e9; color: #1b5e20; }
 
-
 .legenda { font-size: 0.85rem; color: #546e7a; margin-bottom: 14px; }
 
-/* Ricerca globale */
+/* ─── Ricerca globale ────────────────────────────────────────────────────── */
+
 .barra-ricerca-container {
   position: relative;
   padding: 16px 40px 0;
@@ -1084,10 +1078,7 @@ onMounted(async () => {
   box-shadow: 0 2px 8px rgba(0,0,0,0.06);
   transition: border 0.2s;
 }
-.barra-ricerca:focus-within {
-  border-color: #3f51b5;
-  box-shadow: 0 2px 12px rgba(63,81,181,0.15);
-}
+.barra-ricerca:focus-within { border-color: #3f51b5; box-shadow: 0 2px 12px rgba(63,81,181,0.15); }
 .icona-cerca { font-size: 1.1rem; color: #5c6bc0; }
 .barra-ricerca input {
   flex: 1;
@@ -1097,14 +1088,7 @@ onMounted(async () => {
   color: #263238;
   background: transparent;
 }
-.btn-chiudi-ricerca {
-  background: none;
-  border: none;
-  cursor: pointer;
-  color: #90a4ae;
-  font-size: 1rem;
-  padding: 0 4px;
-}
+.btn-chiudi-ricerca { background: none; border: none; cursor: pointer; color: #90a4ae; font-size: 1rem; padding: 0 4px; }
 .btn-chiudi-ricerca:hover { color: #e53935; }
 
 .pannello-risultati {
@@ -1141,7 +1125,7 @@ onMounted(async () => {
   transition: background 0.15s;
 }
 .risultato-item:hover { background: #f5f5f5; }
-.risultato-nome { font-weight: 600; color: #263238; font-size: 0.92rem; }
+.risultato-nome     { font-weight: 600; color: #263238; font-size: 0.92rem; }
 .risultato-dettaglio { font-size: 0.8rem; color: #90a4ae; }
-.risultato-vuoto { padding: 20px; text-align: center; color: #90a4ae; font-style: italic; }
+.risultato-vuoto    { padding: 20px; text-align: center; color: #90a4ae; font-style: italic; }
 </style>
