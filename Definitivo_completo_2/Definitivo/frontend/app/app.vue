@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref, onMounted } from 'vue';
+import { ref, computed, onMounted } from 'vue';
 import axios from 'axios';
 
 // ─── Tipi ──────────────────────────────────────────────────────────────────
@@ -48,7 +48,7 @@ interface Prestito {
 
 // ─── Stato globale ─────────────────────────────────────────────────────────
 
-const sezioneAttiva = ref<'utenti' | 'libri' | 'autori' | 'prestiti'>('utenti');
+const sezioneAttiva = ref<'home' | 'utenti' | 'libri' | 'autori' | 'prestiti'>('home');
 
 const listaUtenti   = ref<Utente[]>([]);
 const listaLibri    = ref<Libro[]>([]);
@@ -58,6 +58,18 @@ const listaCopie    = ref<CopiaLibro[]>([]);
 
 const messaggioSuccesso = ref('');
 const messaggioErrore   = ref('');
+
+// ─── Statistiche (calcolate) ───────────────────────────────────────────────
+
+const totaleCopie = computed(() =>
+    listaLibri.value.reduce((acc: number, l: any) => acc + (l.numeroCopie ?? 0), 0)
+);
+const prestitiAttivi = computed(() =>
+    listaPrestiti.value.filter(p => !p.dataRestituzione).length
+);
+const prestitiScaduti = computed(() =>
+    listaPrestiti.value.filter(p => !p.dataRestituzione && new Date(p.dataScadenza) < new Date()).length
+);
 
 // ─── Ricerca globale ───────────────────────────────────────────────────────
 
@@ -84,7 +96,7 @@ function chiudiRicerca() {
   risultatiRicerca.value = null;
 }
 
-function vaiA(sezione: 'utenti' | 'libri' | 'autori' | 'prestiti') {
+function vaiA(sezione: 'home' | 'utenti' | 'libri' | 'autori' | 'prestiti') {
   sezioneAttiva.value = sezione;
   chiudiRicerca();
 }
@@ -121,7 +133,7 @@ const utenteInModifica = ref<number | null>(null);
 const oggiISO = new Date().toISOString().split('T')[0];
 
 function resetFormUtente() {
-  formUtente.value     = { nome: '', cognome: '', sesso: '', dataNascita: '', luogoNascita: '', email: '', telefono: '' };
+  formUtente.value       = { nome: '', cognome: '', sesso: '', dataNascita: '', luogoNascita: '', email: '', telefono: '' };
   utenteInModifica.value = null;
 }
 
@@ -213,8 +225,8 @@ async function eliminaLibro(isbn: string) {
   try {
     await axios.delete(`http://localhost:8080/libri/${isbn}`);
     if (isbnLibroSelezionato.value === isbn) {
-      isbnLibroSelezionato.value  = '';
-      copieLibroSelezionato.value = [];
+      isbnLibroSelezionato.value   = '';
+      copieLibroSelezionato.value  = [];
       titoloLibroSelezionato.value = '';
     }
     mostraSuccesso('Libro e copie eliminati dal catalogo.');
@@ -224,8 +236,8 @@ async function eliminaLibro(isbn: string) {
 
 async function vediCopieLibro(isbn: string, titolo: string) {
   if (isbnLibroSelezionato.value === isbn) {
-    isbnLibroSelezionato.value  = '';
-    copieLibroSelezionato.value = [];
+    isbnLibroSelezionato.value   = '';
+    copieLibroSelezionato.value  = [];
     titoloLibroSelezionato.value = '';
     return;
   }
@@ -268,38 +280,72 @@ async function eliminaCopia(isbn: string, idCopia: number) {
 
 // ─── Autori ────────────────────────────────────────────────────────────────
 
-const formAutore = ref<Autore>({ nome: '', cognome: '', dataNascita: '', dataMorte: '' });
+const formAutore       = ref<Autore>({ nome: '', cognome: '', dataNascita: '', dataMorte: '' });
+const autoreInModifica = ref<number | null>(null);
+
+function resetFormAutore() {
+  formAutore.value       = { nome: '', cognome: '', dataNascita: '', dataMorte: '' };
+  autoreInModifica.value = null;
+}
 
 async function caricaAutori() {
   try { listaAutori.value = (await axios.get('http://localhost:8080/autori')).data; }
   catch (e) { console.error(e); }
 }
 
-async function salvaAutore() {
+function iniziaModificaAutore(a: Autore) {
+  autoreInModifica.value = a.id!;
+  formAutore.value = {
+    nome: a.nome, cognome: a.cognome,
+    dataNascita: a.dataNascita || '', dataMorte: a.dataMorte || ''
+  };
+  window.scrollTo({ top: 0, behavior: 'smooth' });
+}
+
+function validaAutore(): boolean {
   if (!formAutore.value.nome.trim() || !formAutore.value.cognome.trim()) {
     mostraErrore('Nome e cognome autore sono obbligatori.');
-    return;
+    return false;
   }
   const oggi = new Date(); oggi.setHours(0, 0, 0, 0);
   if (formAutore.value.dataNascita && new Date(formAutore.value.dataNascita) > oggi) {
-    mostraErrore('La data di nascita non può essere successiva a oggi.'); return;
+    mostraErrore('La data di nascita non può essere successiva a oggi.'); return false;
   }
   if (formAutore.value.dataMorte && new Date(formAutore.value.dataMorte) > oggi) {
-    mostraErrore('La data di morte non può essere successiva a oggi.'); return;
+    mostraErrore('La data di morte non può essere successiva a oggi.'); return false;
   }
   if (formAutore.value.dataNascita && formAutore.value.dataMorte &&
       new Date(formAutore.value.dataMorte) < new Date(formAutore.value.dataNascita)) {
-    mostraErrore('La data di morte non può essere precedente alla data di nascita.'); return;
+    mostraErrore('La data di morte non può essere precedente alla data di nascita.'); return false;
   }
+  return true;
+}
+
+async function salvaAutore() {
+  if (!validaAutore()) return;
   try {
     const payload: any = { nome: formAutore.value.nome, cognome: formAutore.value.cognome };
     if (formAutore.value.dataNascita) payload.dataNascita = formAutore.value.dataNascita;
-    if (formAutore.value.dataMorte)  payload.dataMorte   = formAutore.value.dataMorte;
+    if (formAutore.value.dataMorte)   payload.dataMorte   = formAutore.value.dataMorte;
     await axios.post('http://localhost:8080/autori', payload);
-    formAutore.value = { nome: '', cognome: '', dataNascita: '', dataMorte: '' };
+    resetFormAutore();
     mostraSuccesso('Autore aggiunto con successo!');
     caricaAutori();
   } catch (e: any) { mostraErrore(estraiErrore(e, 'Errore durante il salvataggio.')); }
+}
+
+async function aggiornaAutore() {
+  if (autoreInModifica.value == null) return;
+  if (!validaAutore()) return;
+  try {
+    const payload: any = { nome: formAutore.value.nome, cognome: formAutore.value.cognome };
+    if (formAutore.value.dataNascita) payload.dataNascita = formAutore.value.dataNascita;
+    if (formAutore.value.dataMorte)   payload.dataMorte   = formAutore.value.dataMorte;
+    await axios.put(`http://localhost:8080/autori/${autoreInModifica.value}`, payload);
+    mostraSuccesso('Autore aggiornato con successo!');
+    resetFormAutore();
+    caricaAutori();
+  } catch (e: any) { mostraErrore(estraiErrore(e, "Errore durante l'aggiornamento.")); }
 }
 
 async function eliminaAutore(id: number) {
@@ -450,11 +496,81 @@ onMounted(async () => {
 
     <!-- Tab navigazione -->
     <nav class="tab-nav">
+      <button :class="['tab', sezioneAttiva === 'home'     ? 'attivo' : '']" @click="sezioneAttiva = 'home'">🏠 Home</button>
       <button :class="['tab', sezioneAttiva === 'utenti'   ? 'attivo' : '']" @click="sezioneAttiva = 'utenti'">👤 Utenti</button>
       <button :class="['tab', sezioneAttiva === 'libri'    ? 'attivo' : '']" @click="sezioneAttiva = 'libri'">📚 Libri</button>
       <button :class="['tab', sezioneAttiva === 'autori'   ? 'attivo' : '']" @click="sezioneAttiva = 'autori'">✍️ Autori</button>
       <button :class="['tab', sezioneAttiva === 'prestiti' ? 'attivo' : '']" @click="sezioneAttiva = 'prestiti'">📋 Prestiti</button>
     </nav>
+
+    <!-- ═══ SEZIONE HOME ══════════════════════════════════════════════════════ -->
+    <section v-if="sezioneAttiva === 'home'" class="sezione">
+      <div class="card">
+        <h2>📊 Riepilogo Biblioteca</h2>
+        <div class="stats-grid">
+          <div class="stat-card stat-blu" @click="sezioneAttiva = 'libri'">
+            <div class="stat-icona">📚</div>
+            <div class="stat-numero">{{ listaLibri.length }}</div>
+            <div class="stat-etichetta">Titoli in catalogo</div>
+          </div>
+          <div class="stat-card stat-indaco" @click="sezioneAttiva = 'autori'">
+            <div class="stat-icona">✍️</div>
+            <div class="stat-numero">{{ listaAutori.length }}</div>
+            <div class="stat-etichetta">Autori registrati</div>
+          </div>
+          <div class="stat-card stat-verde" @click="sezioneAttiva = 'utenti'">
+            <div class="stat-icona">👤</div>
+            <div class="stat-numero">{{ listaUtenti.length }}</div>
+            <div class="stat-etichetta">Utenti iscritti</div>
+          </div>
+          <div class="stat-card stat-arancio" @click="sezioneAttiva = 'prestiti'">
+            <div class="stat-icona">📋</div>
+            <div class="stat-numero">{{ listaPrestiti.length }}</div>
+            <div class="stat-etichetta">Prestiti totali</div>
+          </div>
+          <div class="stat-card stat-ciano" @click="sezioneAttiva = 'prestiti'">
+            <div class="stat-icona">📤</div>
+            <div class="stat-numero">{{ prestitiAttivi }}</div>
+            <div class="stat-etichetta">Prestiti attivi</div>
+          </div>
+          <div class="stat-card stat-rosso" @click="sezioneAttiva = 'prestiti'">
+            <div class="stat-icona">⚠️</div>
+            <div class="stat-numero">{{ prestitiScaduti }}</div>
+            <div class="stat-etichetta">Prestiti scaduti</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Prestiti attivi recenti -->
+      <div class="card">
+        <h2>📤 Prestiti Attivi ({{ prestitiAttivi }})</h2>
+        <table class="tabella">
+          <thead>
+          <tr>
+            <th>ID</th><th>Utente</th><th>Libro</th><th>Scadenza</th><th>Stato</th>
+          </tr>
+          </thead>
+          <tbody>
+          <tr v-if="prestitiAttivi === 0">
+            <td colspan="5" class="vuoto">Nessun prestito attivo.</td>
+          </tr>
+          <tr
+              v-for="p in listaPrestiti.filter(p => !p.dataRestituzione)" :key="p.idPrestito"
+              :class="isScaduto(p.dataScadenza) ? 'riga-scaduta' : ''"
+          >
+            <td>{{ p.idPrestito }}</td>
+            <td>{{ p.utente?.cognome }} {{ p.utente?.nome }}</td>
+            <td>{{ p.copiaLibro?.libro?.titolo }}</td>
+            <td>{{ p.dataScadenza }}</td>
+            <td>
+              <span v-if="isScaduto(p.dataScadenza)" class="badge scaduto-badge">Scaduto</span>
+              <span v-else class="badge attivo-badge">Attivo</span>
+            </td>
+          </tr>
+          </tbody>
+        </table>
+      </div>
+    </section>
 
     <!-- ═══ SEZIONE UTENTI ═══════════════════════════════════════════════════ -->
     <section v-if="sezioneAttiva === 'utenti'" class="sezione">
@@ -495,8 +611,6 @@ onMounted(async () => {
             <input v-model="formUtente.telefono" placeholder="es. 3331234567" />
           </div>
         </div>
-
-        <!-- Bottoni condizionali: modalità inserimento vs modifica -->
         <div class="azioni-form">
           <template v-if="utenteInModifica !== null">
             <button class="btn-primario btn-aggiorna" @click="aggiornaUtente">✏️ Aggiorna Utente</button>
@@ -598,8 +712,6 @@ onMounted(async () => {
                 <button class="btn-elimina" @click="eliminaLibro(l.codiceIsbn)">🗑️</button>
               </td>
             </tr>
-
-            <!-- Pannello copie espandibile -->
             <tr v-if="isbnLibroSelezionato === l.codiceIsbn">
               <td colspan="5" style="padding: 0;">
                 <div class="pannello-copie">
@@ -607,9 +719,7 @@ onMounted(async () => {
                   <div v-if="copieLibroSelezionato.length === 0" class="vuoto">Nessuna copia registrata per questo libro.</div>
                   <table v-else class="tabella-copie">
                     <thead>
-                    <tr>
-                      <th>ID Copia</th><th>Stato Conservazione</th><th>Disponibilità</th><th>Azioni</th>
-                    </tr>
+                    <tr><th>ID Copia</th><th>Stato Conservazione</th><th>Disponibilità</th><th>Azioni</th></tr>
                     </thead>
                     <tbody>
                     <tr v-for="c in copieLibroSelezionato" :key="c.idCopia">
@@ -644,7 +754,7 @@ onMounted(async () => {
     <section v-if="sezioneAttiva === 'autori'" class="sezione">
 
       <div class="card">
-        <h2>➕ Inserisci Nuovo Autore</h2>
+        <h2>{{ autoreInModifica !== null ? '✏️ Modifica Autore' : '➕ Inserisci Nuovo Autore' }}</h2>
         <div class="form-grid">
           <div class="campo">
             <label>Nome *</label>
@@ -664,7 +774,13 @@ onMounted(async () => {
           </div>
         </div>
         <div class="azioni-form">
-          <button class="btn-primario" @click="salvaAutore">💾 Salva Autore</button>
+          <template v-if="autoreInModifica !== null">
+            <button class="btn-primario btn-aggiorna" @click="aggiornaAutore">✏️ Aggiorna Autore</button>
+            <button class="btn-secondario" @click="resetFormAutore">✕ Annulla</button>
+          </template>
+          <template v-else>
+            <button class="btn-primario" @click="salvaAutore">💾 Salva Autore</button>
+          </template>
         </div>
       </div>
 
@@ -680,14 +796,15 @@ onMounted(async () => {
           <tr v-if="listaAutori.length === 0">
             <td colspan="6" class="vuoto">Nessun autore registrato.</td>
           </tr>
-          <tr v-for="a in listaAutori" :key="a.id">
+          <tr v-for="a in listaAutori" :key="a.id" :class="autoreInModifica === a.id ? 'riga-selezionata' : ''">
             <td>{{ a.id }}</td>
             <td>{{ a.cognome }}</td>
             <td>{{ a.nome }}</td>
             <td>{{ a.dataNascita || '—' }}</td>
             <td>{{ a.dataMorte  || '—' }}</td>
-            <td>
-              <button class="btn-elimina" @click="eliminaAutore(a.id!)">🗑️ Elimina</button>
+            <td class="azioni-cell">
+              <button class="btn-vedi-copie" @click="iniziaModificaAutore(a)">✏️ Modifica</button>
+              <button class="btn-elimina"    @click="eliminaAutore(a.id!)">🗑️ Elimina</button>
             </td>
           </tr>
           </tbody>
@@ -721,15 +838,14 @@ onMounted(async () => {
         <div class="cerca-copie">
           <label>Cerca copie disponibili per ISBN:</label>
           <div class="cerca-row">
-            <select v-model="isbnPerCopie" style="flex:1; padding:10px 12px; border:1px solid #cfd8dc; border-radius:6px; font-size:0.95rem;">
+            <select v-model="isbnPerCopie">
               <option value="" disabled>-- Seleziona un libro --</option>
               <option v-for="l in listaLibri" :key="l.codiceIsbn" :value="l.codiceIsbn">
                 {{ l.codiceIsbn }} — {{ l.titolo }}
               </option>
             </select>
-            <span style="align-self:center; color:#90a4ae; font-size:0.85rem; white-space:nowrap;">oppure scrivi:</span>
-            <input v-model="isbnPerCopie" placeholder="es. 978-88-04-67543-1"
-                   style="flex:1; padding:10px 12px; border:1px solid #cfd8dc; border-radius:6px; font-size:0.95rem;" />
+            <span class="oppure-label">oppure scrivi:</span>
+            <input v-model="isbnPerCopie" placeholder="es. 978-88-04-67543-1" />
             <button class="btn-secondario" @click="caricaCopieDisponibili">🔍 Cerca Copie</button>
           </div>
         </div>
@@ -863,6 +979,37 @@ onMounted(async () => {
 }
 .card h2 { margin: 0 0 20px; font-size: 1.2rem; color: #1a237e; }
 
+/* ─── Statistiche Home ───────────────────────────────────────────────────── */
+
+.stats-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
+  gap: 20px;
+}
+
+.stat-card {
+  border-radius: 12px;
+  padding: 24px 20px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+  cursor: pointer;
+  transition: transform 0.15s, box-shadow 0.15s;
+}
+.stat-card:hover { transform: translateY(-3px); box-shadow: 0 6px 20px rgba(0,0,0,0.12); }
+
+.stat-icona   { font-size: 2rem; }
+.stat-numero  { font-size: 2.4rem; font-weight: 700; line-height: 1; }
+.stat-etichetta { font-size: 0.85rem; font-weight: 600; text-align: center; opacity: 0.85; }
+
+.stat-blu    { background: #e8eaf6; color: #1a237e; }
+.stat-indaco { background: #ede7f6; color: #4527a0; }
+.stat-verde  { background: #e8f5e9; color: #1b5e20; }
+.stat-arancio { background: #fff3e0; color: #e65100; }
+.stat-ciano  { background: #e0f7fa; color: #006064; }
+.stat-rosso  { background: #ffebee; color: #b71c1c; }
+
 /* ─── Form ───────────────────────────────────────────────────────────────── */
 
 .form-grid {
@@ -887,7 +1034,6 @@ onMounted(async () => {
 }
 
 .label-opzionale { font-weight: 400; color: #888; }
-
 .azioni-form { display: flex; gap: 12px; margin-top: 4px; }
 
 .nota-info {
@@ -902,13 +1048,25 @@ onMounted(async () => {
 
 .cerca-copie { margin-bottom: 16px; }
 .cerca-copie label { display: block; font-size: 0.85rem; font-weight: 600; color: #37474f; margin-bottom: 8px; }
-.cerca-row { display: flex; gap: 10px; }
+.cerca-row {
+  display: flex;
+  gap: 10px;
+  align-items: center;
+  flex-wrap: wrap;
+}
+.cerca-row select,
 .cerca-row input {
   flex: 1;
+  min-width: 160px;
   padding: 10px 12px;
   border: 1px solid #cfd8dc;
   border-radius: 6px;
   font-size: 0.95rem;
+}
+.oppure-label {
+  font-size: 0.85rem;
+  color: #90a4ae;
+  white-space: nowrap;
 }
 
 /* ─── Bottoni ────────────────────────────────────────────────────────────── */
@@ -1047,13 +1205,7 @@ onMounted(async () => {
 
 /* ─── Badge prestiti ─────────────────────────────────────────────────────── */
 
-.badge {
-  display: inline-block;
-  padding: 3px 10px;
-  border-radius: 20px;
-  font-size: 0.78rem;
-  font-weight: 700;
-}
+.badge { display: inline-block; padding: 3px 10px; border-radius: 20px; font-size: 0.78rem; font-weight: 700; }
 .attivo-badge     { background: #e3f2fd; color: #0d47a1; }
 .scaduto-badge    { background: #ffebee; color: #b71c1c; }
 .restituito-badge { background: #e8f5e9; color: #1b5e20; }
@@ -1125,7 +1277,7 @@ onMounted(async () => {
   transition: background 0.15s;
 }
 .risultato-item:hover { background: #f5f5f5; }
-.risultato-nome     { font-weight: 600; color: #263238; font-size: 0.92rem; }
+.risultato-nome      { font-weight: 600; color: #263238; font-size: 0.92rem; }
 .risultato-dettaglio { font-size: 0.8rem; color: #90a4ae; }
-.risultato-vuoto    { padding: 20px; text-align: center; color: #90a4ae; font-style: italic; }
+.risultato-vuoto     { padding: 20px; text-align: center; color: #90a4ae; font-style: italic; }
 </style>
