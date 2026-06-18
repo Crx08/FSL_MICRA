@@ -54,6 +54,22 @@ public class AutoreController {
         }
         return ResponseEntity.ok(autoreRepository.save(nuovoAutore));
     }
+    @PutMapping("/{id}")
+    public ResponseEntity<?> aggiornaAutore(
+            @PathVariable Integer id,
+            @RequestBody Autore autore) {
+
+        return autoreRepository.findById(id)
+                .map(a -> {
+                    a.setNome(autore.getNome());
+                    a.setCognome(autore.getCognome());
+                    a.setDataNascita(autore.getDataNascita());
+                    a.setDataMorte(autore.getDataMorte());
+                    return ResponseEntity.ok((Object) autoreRepository.save(a));
+                })
+                .orElse(ResponseEntity.badRequest()
+                        .body((Object) ("Autore con ID " + id + " non trovato.")));
+    }
 
     // DELETE autore — elimina a cascata prestiti storici, copie e libri
     // Bloccato se uno dei libri ha prestiti attivi

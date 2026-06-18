@@ -22,6 +22,7 @@ CREATE TABLE utenti (
     sesso        CHAR(1)      NOT NULL,
     email        VARCHAR(255) NOT NULL UNIQUE,
     telefono     VARCHAR(50)  NOT NULL UNIQUE
+    
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 
 CREATE TABLE autori (
@@ -126,7 +127,8 @@ INSERT INTO libri (codice_isbn, titolo, anno_pubblicazione, id_autore, sala, sca
 ('9788804678120', 'Io, Robot',                                1950, 17, 'Sala B', 'Scaffale 6', 'Ripiano 1'),
 ('9788804683018', 'I pilastri della terra',                   1989, 18, 'Sala A', 'Scaffale 8', 'Ripiano 1'),
 ('9788804712015', 'Il codice da Vinci',                       2003, 19, 'Sala B', 'Scaffale 2', 'Ripiano 1'),
-('9788817044233', 'Il fu Mattia Pascal',                      1904, 20, 'Sala C', 'Scaffale 6', 'Ripiano 1');
+('9788817044233', 'Il fu Mattia Pascal',                      1904, 20, 'Sala C', 'Scaffale 6', 'Ripiano 1'),
+
 
 INSERT INTO copie_libri (codice_isbn, stato_conservazione, disponibile) VALUES
 ('9788845292613', 'Ottimo',   TRUE),
@@ -145,7 +147,9 @@ INSERT INTO copie_libri (codice_isbn, stato_conservazione, disponibile) VALUES
 
 COMMIT;
 
+ALTER TABLE utenti ADD COLUMN luogo_nascita VARCHAR(255);
 SELECT CONCAT('Utenti: ',    COUNT(*)) AS verifica FROM utenti
+
 UNION ALL
 SELECT CONCAT('Autori: ',    COUNT(*)) FROM autori
 UNION ALL

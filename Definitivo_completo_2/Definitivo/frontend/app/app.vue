@@ -46,6 +46,37 @@ interface Prestito {
   dataRestituzione?: string | null;
 }
 
+// ─── Paginazione ───────────────────────────────────────────────────────────
+
+
+
+function usePaginazione<T>(lista: Ref<T[]>, pageSize = 10) {
+  const paginaCorrente = ref(1);
+
+  const totalePagine = computed(() =>
+      Math.max(1, Math.ceil((lista.value?.length ?? 0) / pageSize))
+  );
+
+  const elementiPagina = computed<T[]>(() => {
+    if (!lista.value) return [];
+    const inizio = (paginaCorrente.value - 1) * pageSize;
+    return lista.value.slice(inizio, inizio + pageSize);
+  });
+
+  function paginaPrecedente() {
+    if (paginaCorrente.value > 1) paginaCorrente.value--;
+  }
+
+  function paginaSuccessiva() {
+    if (paginaCorrente.value < totalePagine.value) paginaCorrente.value++;
+  }
+
+  function reset() {
+    paginaCorrente.value = 1;
+  }
+
+  return { paginaCorrente, totalePagine, elementiPagina, paginaPrecedente, paginaSuccessiva, reset };
+}
 // ─── Stato globale ─────────────────────────────────────────────────────────
 
 const sezioneAttiva = ref<'home' | 'utenti' | 'libri' | 'autori' | 'prestiti'>('home');
@@ -58,6 +89,13 @@ const listaCopie    = ref<CopiaLibro[]>([]);
 
 const messaggioSuccesso = ref('');
 const messaggioErrore   = ref('');
+
+// ─── Paginatori ────────────────────────────────────────────────────────────
+
+const pagUtenti   = usePaginazione(listaUtenti);
+const pagLibri    = usePaginazione(listaLibri);
+const pagAutori   = usePaginazione(listaAutori);
+const pagPrestiti = usePaginazione(listaPrestiti);
 
 // ─── Statistiche (calcolate) ───────────────────────────────────────────────
 
@@ -138,8 +176,10 @@ function resetFormUtente() {
 }
 
 async function caricaUtenti() {
-  try { listaUtenti.value = (await axios.get('http://localhost:8080/utenti')).data; }
-  catch (e) { console.error(e); }
+  try {
+    listaUtenti.value = (await axios.get('http://localhost:8080/utenti')).data;
+    pagUtenti.reset();
+  } catch (e) { console.error(e); }
 }
 
 function iniziaModificaUtente(u: Utente) {
@@ -203,8 +243,10 @@ const isbnLibroSelezionato   = ref('');
 const titoloLibroSelezionato = ref('');
 
 async function caricaLibri() {
-  try { listaLibri.value = (await axios.get('http://localhost:8080/libri')).data; }
-  catch (e) { console.error(e); }
+  try {
+    listaLibri.value = (await axios.get('http://localhost:8080/libri')).data;
+    pagLibri.reset();
+  } catch (e) { console.error(e); }
 }
 
 async function salvaLibro() {
@@ -289,8 +331,10 @@ function resetFormAutore() {
 }
 
 async function caricaAutori() {
-  try { listaAutori.value = (await axios.get('http://localhost:8080/autori')).data; }
-  catch (e) { console.error(e); }
+  try {
+    listaAutori.value = (await axios.get('http://localhost:8080/autori')).data;
+    pagAutori.reset();
+  } catch (e) { console.error(e); }
 }
 
 function iniziaModificaAutore(a: Autore) {
@@ -364,8 +408,10 @@ const formPrestito = ref({ idUtente: '' as string | number, nomeUtente: '', cogn
 const isbnPerCopie = ref('');
 
 async function caricaPrestiti() {
-  try { listaPrestiti.value = (await axios.get('http://localhost:8080/prestiti')).data; }
-  catch (e) { console.error(e); }
+  try {
+    listaPrestiti.value = (await axios.get('http://localhost:8080/prestiti')).data;
+    pagPrestiti.reset();
+  } catch (e) { console.error(e); }
 }
 
 async function caricaCopieDisponibili() {
@@ -635,7 +681,7 @@ onMounted(async () => {
           <tr v-if="listaUtenti.length === 0">
             <td colspan="8" class="vuoto">Nessun utente registrato.</td>
           </tr>
-          <tr v-for="u in listaUtenti" :key="u.id" :class="utenteInModifica === u.id ? 'riga-selezionata' : ''">
+          <tr v-for="u in pagUtenti.elementiPagina.value" :key="u.id" :class="utenteInModifica === u.id ? 'riga-selezionata' : ''">
             <td>{{ u.id }}</td>
             <td>{{ u.nome }}</td>
             <td>{{ u.cognome }}</td>
@@ -650,6 +696,12 @@ onMounted(async () => {
           </tr>
           </tbody>
         </table>
+        <!-- Paginatore utenti -->
+        <div v-if="pagUtenti.totalePagine.value > 1" class="paginatore">
+          <button class="btn-pag" :disabled="pagUtenti.paginaCorrente.value === 1" @click="pagUtenti.paginaPrecedente()">◀</button>
+          <span class="pag-info">Pagina {{ pagUtenti.paginaCorrente.value }} di {{ pagUtenti.totalePagine.value }}</span>
+          <button class="btn-pag" :disabled="pagUtenti.paginaCorrente.value === pagUtenti.totalePagine.value" @click="pagUtenti.paginaSuccessiva()">▶</button>
+        </div>
       </div>
     </section>
 
@@ -698,7 +750,7 @@ onMounted(async () => {
           <tr v-if="listaLibri.length === 0">
             <td colspan="5" class="vuoto">Nessun libro nel catalogo.</td>
           </tr>
-          <template v-for="l in listaLibri" :key="l.codiceIsbn">
+          <template v-for="l in pagLibri.elementiPagina.value" :key="l.codiceIsbn">
             <tr :class="isbnLibroSelezionato === l.codiceIsbn ? 'riga-selezionata' : ''">
               <td>{{ l.codiceIsbn }}</td>
               <td>{{ l.titolo }}</td>
@@ -747,6 +799,12 @@ onMounted(async () => {
           </template>
           </tbody>
         </table>
+        <!-- Paginatore libri -->
+        <div v-if="pagLibri.totalePagine.value > 1" class="paginatore">
+          <button class="btn-pag" :disabled="pagLibri.paginaCorrente.value === 1" @click="pagLibri.paginaPrecedente()">◀</button>
+          <span class="pag-info">Pagina {{ pagLibri.paginaCorrente.value }} di {{ pagLibri.totalePagine.value }}</span>
+          <button class="btn-pag" :disabled="pagLibri.paginaCorrente.value === pagLibri.totalePagine.value" @click="pagLibri.paginaSuccessiva()">▶</button>
+        </div>
       </div>
     </section>
 
@@ -796,7 +854,7 @@ onMounted(async () => {
           <tr v-if="listaAutori.length === 0">
             <td colspan="6" class="vuoto">Nessun autore registrato.</td>
           </tr>
-          <tr v-for="a in listaAutori" :key="a.id" :class="autoreInModifica === a.id ? 'riga-selezionata' : ''">
+          <tr v-for="a in pagAutori.elementiPagina.value" :key="a.id" :class="autoreInModifica === a.id ? 'riga-selezionata' : ''">
             <td>{{ a.id }}</td>
             <td>{{ a.cognome }}</td>
             <td>{{ a.nome }}</td>
@@ -809,6 +867,12 @@ onMounted(async () => {
           </tr>
           </tbody>
         </table>
+        <!-- Paginatore autori -->
+        <div v-if="pagAutori.totalePagine.value > 1" class="paginatore">
+          <button class="btn-pag" :disabled="pagAutori.paginaCorrente.value === 1" @click="pagAutori.paginaPrecedente()">◀</button>
+          <span class="pag-info">Pagina {{ pagAutori.paginaCorrente.value }} di {{ pagAutori.totalePagine.value }}</span>
+          <button class="btn-pag" :disabled="pagAutori.paginaCorrente.value === pagAutori.totalePagine.value" @click="pagAutori.paginaSuccessiva()">▶</button>
+        </div>
       </div>
     </section>
 
@@ -885,7 +949,7 @@ onMounted(async () => {
             <td colspan="8" class="vuoto">Nessun prestito registrato.</td>
           </tr>
           <tr
-              v-for="p in listaPrestiti" :key="p.idPrestito"
+              v-for="p in pagPrestiti.elementiPagina.value" :key="p.idPrestito"
               :class="p.dataRestituzione ? 'riga-restituita' : isScaduto(p.dataScadenza) ? 'riga-scaduta' : ''"
           >
             <td>{{ p.idPrestito }}</td>
@@ -908,6 +972,12 @@ onMounted(async () => {
           </tr>
           </tbody>
         </table>
+        <!-- Paginatore prestiti -->
+        <div v-if="pagPrestiti.totalePagine.value > 1" class="paginatore">
+          <button class="btn-pag" :disabled="pagPrestiti.paginaCorrente.value === 1" @click="pagPrestiti.paginaPrecedente()">◀</button>
+          <span class="pag-info">Pagina {{ pagPrestiti.paginaCorrente.value }} di {{ pagPrestiti.totalePagine.value }}</span>
+          <button class="btn-pag" :disabled="pagPrestiti.paginaCorrente.value === pagPrestiti.totalePagine.value" @click="pagPrestiti.paginaSuccessiva()">▶</button>
+        </div>
       </div>
     </section>
 
@@ -1280,4 +1350,50 @@ onMounted(async () => {
 .risultato-nome      { font-weight: 600; color: #263238; font-size: 0.92rem; }
 .risultato-dettaglio { font-size: 0.8rem; color: #90a4ae; }
 .risultato-vuoto     { padding: 20px; text-align: center; color: #90a4ae; font-style: italic; }
+
+/* ─── Paginazione ────────────────────────────────────────────────────────── */
+
+.paginatore {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 16px;
+  margin-top: 20px;
+  padding-top: 16px;
+  border-top: 1px solid #eceff1;
+}
+
+.btn-pag {
+  width: 36px;
+  height: 36px;
+  border: 2px solid #c5cae9;
+  border-radius: 8px;
+  background: white;
+  color: #1a237e;
+  font-size: 1rem;
+  font-weight: 700;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.15s;
+  line-height: 1;
+}
+.btn-pag:hover:not(:disabled) {
+  background: #1a237e;
+  color: white;
+  border-color: #1a237e;
+}
+.btn-pag:disabled {
+  opacity: 0.3;
+  cursor: not-allowed;
+}
+
+.pag-info {
+  font-size: 0.9rem;
+  font-weight: 600;
+  color: #546e7a;
+  min-width: 130px;
+  text-align: center;
+}
 </style>
