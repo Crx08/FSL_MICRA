@@ -48,8 +48,6 @@ interface Prestito {
 
 // ─── Paginazione ───────────────────────────────────────────────────────────
 
-
-
 function usePaginazione<T>(lista: Ref<T[]>, pageSize = 10) {
   const paginaCorrente = ref(1);
 
@@ -115,9 +113,25 @@ const termineRicerca   = ref('');
 const risultatiRicerca = ref<{ libri: Libro[]; autori: Autore[]; utenti: Utente[] } | null>(null);
 const ricercaInCorso   = ref(false);
 
-async function eseguiRicerca() {
+let timeoutRicerca: ReturnType<typeof setTimeout> | null = null;
+
+function eseguiRicerca() {
+  if (timeoutRicerca) {
+    clearTimeout(timeoutRicerca);
+  }
+
   const q = termineRicerca.value.trim();
-  if (!q) { risultatiRicerca.value = null; return; }
+  if (!q) {
+    risultatiRicerca.value = null;
+    return;
+  }
+
+  timeoutRicerca = setTimeout(() => {
+    cercaSulServer(q);
+  }, 300);
+}
+
+async function cercaSulServer(q: string) {
   ricercaInCorso.value = true;
   try {
     const res = await axios.get('http://localhost:8080/ricerca', { params: { q } });
@@ -130,6 +144,9 @@ async function eseguiRicerca() {
 }
 
 function chiudiRicerca() {
+  if (timeoutRicerca) {
+    clearTimeout(timeoutRicerca);
+  }
   termineRicerca.value   = '';
   risultatiRicerca.value = null;
 }
@@ -501,39 +518,90 @@ onMounted(async () => {
         />
         <button v-if="termineRicerca" class="btn-chiudi-ricerca" @click="chiudiRicerca">✕</button>
       </div>
+    </div>
 
-      <div v-if="risultatiRicerca" class="pannello-risultati">
-        <div v-if="ricercaInCorso" class="risultato-vuoto">Ricerca in corso...</div>
-        <template v-else>
-          <div class="gruppo-risultati" v-if="risultatiRicerca.libri.length > 0">
-            <div class="gruppo-titolo" @click="vaiA('libri')">📚 Libri ({{ risultatiRicerca.libri.length }})</div>
-            <div v-for="l in risultatiRicerca.libri" :key="l.codiceIsbn" class="risultato-item" @click="vaiA('libri')">
-              <span class="risultato-nome">{{ l.titolo }}</span>
-              <span class="risultato-dettaglio">{{ (l.autore as any)?.cognome }} {{ (l.autore as any)?.nome }} — ISBN: {{ l.codiceIsbn }}</span>
-            </div>
-          </div>
-          <div class="gruppo-risultati" v-if="risultatiRicerca.autori.length > 0">
-            <div class="gruppo-titolo" @click="vaiA('autori')">✍️ Autori ({{ risultatiRicerca.autori.length }})</div>
-            <div v-for="a in risultatiRicerca.autori" :key="a.id" class="risultato-item" @click="vaiA('autori')">
-              <span class="risultato-nome">{{ a.cognome }} {{ a.nome }}</span>
-              <span class="risultato-dettaglio">ID: {{ a.id }}</span>
-            </div>
-          </div>
-          <div class="gruppo-risultati" v-if="risultatiRicerca.utenti.length > 0">
-            <div class="gruppo-titolo" @click="vaiA('utenti')">👤 Utenti ({{ risultatiRicerca.utenti.length }})</div>
-            <div v-for="u in risultatiRicerca.utenti" :key="u.id" class="risultato-item" @click="vaiA('utenti')">
-              <span class="risultato-nome">{{ u.cognome }} {{ u.nome }}</span>
-              <span class="risultato-dettaglio">ID: {{ u.id }} — {{ u.email }}</span>
-            </div>
-          </div>
-          <div
-              v-if="!risultatiRicerca.libri.length && !risultatiRicerca.autori.length && !risultatiRicerca.utenti.length"
-              class="risultato-vuoto"
-          >
-            Nessun risultato per "{{ termineRicerca }}"
-          </div>
-        </template>
-      </div>
+    <!-- Tabelle temporanee dei risultati di ricerca -->
+    <div v-if="risultatiRicerca" class="pannello-risultati-esteso">
+      <div v-if="ricercaInCorso" class="risultato-vuoto">Ricerca in corso...</div>
+      <template v-else>
+
+        <div
+            v-if="!risultatiRicerca.libri.length && !risultatiRicerca.autori.length && !risultatiRicerca.utenti.length"
+            class="card"
+        >
+          <div class="risultato-vuoto">Nessun risultato per "{{ termineRicerca }}"</div>
+        </div>
+
+        <!-- Tabella Libri -->
+        <div v-if="risultatiRicerca.libri.length > 0" class="card tabella-ricerca-card">
+          <h3>📚 Libri ({{ risultatiRicerca.libri.length }})</h3>
+          <table class="tabella">
+            <thead>
+            <tr><th>ISBN</th><th>Titolo</th><th>Autore</th><th>Anno</th><th>Azioni</th></tr>
+            </thead>
+            <tbody>
+            <tr v-for="l in risultatiRicerca.libri" :key="l.codiceIsbn">
+              <td>{{ l.codiceIsbn }}</td>
+              <td>{{ l.titolo }}</td>
+              <td>{{ (l.autore as any)?.cognome }} {{ (l.autore as any)?.nome }}</td>
+              <td>{{ l.annoPubblicazione || '—' }}</td>
+              <td class="azioni-cell">
+                <button class="btn-vedi-copie" @click="vaiA('libri'); vediCopieLibro(l.codiceIsbn, l.titolo)">📋 Copie</button>
+                <button class="btn-copie" @click="aggiungiCopie(l.codiceIsbn, l.titolo)">📦 Aggiungi</button>
+                <button class="btn-elimina" @click="eliminaLibro(l.codiceIsbn)">🗑️</button>
+              </td>
+            </tr>
+            </tbody>
+          </table>
+        </div>
+
+        <!-- Tabella Autori -->
+        <div v-if="risultatiRicerca.autori.length > 0" class="card tabella-ricerca-card">
+          <h3>✍️ Autori ({{ risultatiRicerca.autori.length }})</h3>
+          <table class="tabella">
+            <thead>
+            <tr><th>ID</th><th>Cognome</th><th>Nome</th><th>Data Nascita</th><th>Data Morte</th><th>Azioni</th></tr>
+            </thead>
+            <tbody>
+            <tr v-for="a in risultatiRicerca.autori" :key="a.id">
+              <td>{{ a.id }}</td>
+              <td>{{ a.cognome }}</td>
+              <td>{{ a.nome }}</td>
+              <td>{{ a.dataNascita || '—' }}</td>
+              <td>{{ a.dataMorte || '—' }}</td>
+              <td class="azioni-cell">
+                <button class="btn-vedi-copie" @click="vaiA('autori'); iniziaModificaAutore(a)">✏️ Modifica</button>
+                <button class="btn-elimina" @click="eliminaAutore(a.id!)">🗑️ Elimina</button>
+              </td>
+            </tr>
+            </tbody>
+          </table>
+        </div>
+
+        <!-- Tabella Utenti -->
+        <div v-if="risultatiRicerca.utenti.length > 0" class="card tabella-ricerca-card">
+          <h3>👤 Utenti ({{ risultatiRicerca.utenti.length }})</h3>
+          <table class="tabella">
+            <thead>
+            <tr><th>ID</th><th>Nome</th><th>Cognome</th><th>Email</th><th>Telefono</th><th>Azioni</th></tr>
+            </thead>
+            <tbody>
+            <tr v-for="u in risultatiRicerca.utenti" :key="u.id">
+              <td>{{ u.id }}</td>
+              <td>{{ u.nome }}</td>
+              <td>{{ u.cognome }}</td>
+              <td>{{ u.email }}</td>
+              <td>{{ u.telefono || '—' }}</td>
+              <td class="azioni-cell">
+                <button class="btn-vedi-copie" @click="vaiA('utenti'); iniziaModificaUtente(u)">✏️ Modifica</button>
+                <button class="btn-elimina" @click="eliminaUtente(u.id!)">🗑️ Elimina</button>
+              </td>
+            </tr>
+            </tbody>
+          </table>
+        </div>
+
+      </template>
     </div>
 
     <!-- Notifiche -->
@@ -1313,43 +1381,19 @@ onMounted(async () => {
 .btn-chiudi-ricerca { background: none; border: none; cursor: pointer; color: #90a4ae; font-size: 1rem; padding: 0 4px; }
 .btn-chiudi-ricerca:hover { color: #e53935; }
 
-.pannello-risultati {
-  position: absolute;
-  top: calc(100% - 4px);
-  left: 40px;
-  right: 40px;
-  background: white;
-  border: 1px solid #c5cae9;
-  border-radius: 0 0 10px 10px;
-  box-shadow: 0 8px 24px rgba(0,0,0,0.12);
-  z-index: 100;
-  max-height: 420px;
-  overflow-y: auto;
-}
-.gruppo-risultati { border-bottom: 1px solid #eceff1; }
-.gruppo-risultati:last-child { border-bottom: none; }
-.gruppo-titolo {
-  padding: 10px 16px;
-  font-size: 0.8rem;
-  font-weight: 700;
-  color: #1a237e;
-  background: #e8eaf6;
-  cursor: pointer;
-  letter-spacing: 0.05em;
-}
-.gruppo-titolo:hover { background: #c5cae9; }
-.risultato-item {
+/* ─── Tabelle temporanee di ricerca ──────────────────────────────────────── */
+
+.pannello-risultati-esteso {
   display: flex;
-  justify-content: space-between;
-  align-items: center;
-  padding: 10px 20px;
-  cursor: pointer;
-  transition: background 0.15s;
+  flex-direction: column;
+  gap: 16px;
+  margin: 16px 40px 0;
 }
-.risultato-item:hover { background: #f5f5f5; }
-.risultato-nome      { font-weight: 600; color: #263238; font-size: 0.92rem; }
-.risultato-dettaglio { font-size: 0.8rem; color: #90a4ae; }
-.risultato-vuoto     { padding: 20px; text-align: center; color: #90a4ae; font-style: italic; }
+
+.tabella-ricerca-card { padding: 20px 28px; }
+.tabella-ricerca-card h3 { margin: 0 0 14px; font-size: 1.05rem; color: #1a237e; }
+
+.risultato-vuoto { padding: 20px; text-align: center; color: #90a4ae; font-style: italic; }
 
 /* ─── Paginazione ────────────────────────────────────────────────────────── */
 
